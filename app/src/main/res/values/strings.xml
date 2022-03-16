@@ -1,0 +1,36 @@
+<resources>
+    <string name="app_name">ShakeSocketController</string>
+    <string name="nav_header_img_desc">Navigation header</string>
+    <string name="floating_btn_desc">Floating On-Off</string>
+    <string name="txt_text_view">TextView</string>
+    <string name="arg_name_online_flag">isOnlineView</string>
+    <string name="arg_name_should_nav_flag">shouldNavOnReopen</string>
+    <string name="arg_name_show_fab_flag">needShowFabOnFragment</string>
+    <string name="div_line_history_offline">历史记录（不在线）</string>
+
+    <string name="tip_empty_device">没有发现设备…</string>
+    <string name="tip_empty_history">没有历史设备…</string>
+    <string name="tip_connecting">（连接中…）</string>
+    <string name="tip_connected">（已连接）</string>
+    <string name="tip_saved">（已保存）</string>
+    <string name="tip_offline">（离线）</string>
+    <string name="tip_ctrl_off">控制器已断开…</string>
+    <string name="tip_ctrl_on">控制器已启动…</string>
+    <string name="tip_no_network">网络不可用！</string>
+    <string name="tip_nav_ctrl_on_multi">台设备\  (SSC - ON)</string>
+    <string name="tip_nav_ctrl_on_listen">(SSC - Listen)</string>
+    <string name="tip_nav_ctrl_on_single">\  (SSC - ON)</string>
+    <string name="tip_nav_ctrl_off">(SSC - OFF)</string>
+
+    <string name="action_settings">设置</string>
+    <string name="action_about">关于</string>
+
+    <string name="menu_home_list">配置连接</string>
+    <string name="menu_history_list">历史配置</string>
+    <string name="menu_title_function">功能</string>
+    <string name="menu_media_control">媒体控制</string>
+    <string name="menu_power_control">电源控制</string>
+
+    <string name="shutdown_cmd">远程关机</string>
+    <string name="screen_lock_cmd">远程锁屏</string>
+</resources>

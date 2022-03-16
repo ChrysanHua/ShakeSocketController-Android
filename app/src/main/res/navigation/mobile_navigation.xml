@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mobile_navigation"
+    app:startDestination="@id/nav_home_list">
+
+    <fragment
+        android:id="@+id/nav_home_list"
+        android:name="com.ssc.shakesocketcontroller.UI.fragments.HomeListFragment"
+        android:label="@string/menu_home_list"
+        tools:layout="@layout/fragment_home_list" />
+
+    <fragment
+        android:id="@+id/nav_history_list"
+        android:name="com.ssc.shakesocketcontroller.UI.fragments.HomeListFragment"
+        android:label="@string/menu_history_list"
+        tools:layout="@layout/fragment_home_list">
+        <argument
+            android:name="@string/arg_name_online_flag"
+            android:defaultValue="false"
+            app:argType="boolean" />
+        <argument
+            android:name="@string/arg_name_should_nav_flag"
+            android:defaultValue="false"
+            app:argType="boolean" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/nav_media_control"
+        android:name="com.ssc.shakesocketcontroller.UI.fragments.MediaControlFragment"
+        android:label="@string/menu_media_control"
+        tools:layout="@layout/fragment_media_control" />
+
+    <fragment
+        android:id="@+id/nav_power_control"
+        android:name="com.ssc.shakesocketcontroller.UI.fragments.PowerControlFragment"
+        android:label="@string/menu_power_control"
+        tools:layout="@layout/fragment_power_control" />
+
+</navigation>
