@@ -1,4 +1,4 @@
-package com.ssc.shakesocketcontroller;
+package com.ssc.shakesocketcontroller.UI.activities;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -12,6 +12,8 @@ import android.widget.TextView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.snackbar.Snackbar;
+import com.ssc.shakesocketcontroller.FunctionActivity;
+import com.ssc.shakesocketcontroller.R;
 import com.ssc.shakesocketcontroller.Transaction.controller.MyApplication;
 import com.ssc.shakesocketcontroller.Transaction.controller.TransactionController;
 import com.ssc.shakesocketcontroller.Models.events.signal.BroadcastEvent;

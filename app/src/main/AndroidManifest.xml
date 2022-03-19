@@ -16,7 +16,7 @@
         <activity
             android:name=".FunctionActivity"
             android:label="功能列表"
-            android:parentActivityName=".MainActivity" />
+            android:parentActivityName=".UI.activities.MainActivity" />
         <activity
             android:name=".VolumeControlActivity"
             android:label="音量调节"
@@ -34,7 +34,7 @@
             android:label="远程控制"
             android:parentActivityName=".FunctionActivity" />
         <activity
-            android:name=".MainActivity"
+            android:name=".UI.activities.MainActivity"
             android:label="@string/app_name"
             android:theme="@style/AppTheme.NoActionBar">
             <intent-filter>
