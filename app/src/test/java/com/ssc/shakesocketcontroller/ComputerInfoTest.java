@@ -1,9 +1,10 @@
-package com.ssc.shakesocketcontroller.Transaction.pojo;
+package com.ssc.shakesocketcontroller;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.ssc.shakesocketcontroller.Transaction.events.command.BaseCmdEvent;
-import com.ssc.shakesocketcontroller.Transaction.events.command.ShutdownCmd;
+import com.ssc.shakesocketcontroller.Models.pojo.ComputerInfo;
+import com.ssc.shakesocketcontroller.Models.events.command.BaseCmdEvent;
+import com.ssc.shakesocketcontroller.Models.events.command.ShutdownCmd;
 import com.ssc.shakesocketcontroller.Utils.DeviceUtil;
 
 import org.junit.Test;

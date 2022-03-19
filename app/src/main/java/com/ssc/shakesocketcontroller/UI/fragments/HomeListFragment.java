@@ -9,8 +9,8 @@ import android.widget.TextView;
 
 import com.ssc.shakesocketcontroller.R;
 import com.ssc.shakesocketcontroller.Transaction.controller.MyApplication;
-import com.ssc.shakesocketcontroller.Transaction.events.signal.CtrlStateChangedEvent;
-import com.ssc.shakesocketcontroller.Transaction.events.signal.EndRefreshEvent;
+import com.ssc.shakesocketcontroller.Models.events.signal.CtrlStateChangedEvent;
+import com.ssc.shakesocketcontroller.Models.events.signal.EndRefreshEvent;
 import com.ssc.shakesocketcontroller.UI.adapters.OnlyCPInfoAdapter;
 
 import org.greenrobot.eventbus.EventBus;

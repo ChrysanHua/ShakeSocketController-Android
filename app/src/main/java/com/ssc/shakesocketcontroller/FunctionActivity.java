@@ -6,7 +6,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.view.View;
 import android.widget.TextView;
 
-import com.ssc.shakesocketcontroller.Transaction.pojo.FunctionStr;
+import com.ssc.shakesocketcontroller.Models.pojo.FunctionStr;
 
 public class FunctionActivity extends AppCompatActivity {
 

@@ -7,9 +7,9 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.ssc.shakesocketcontroller.Transaction.events.command.BaseCmdEvent;
-import com.ssc.shakesocketcontroller.Transaction.events.command.VolumeCmd;
-import com.ssc.shakesocketcontroller.Transaction.events.signal.AnswerEvent;
+import com.ssc.shakesocketcontroller.Models.events.command.BaseCmdEvent;
+import com.ssc.shakesocketcontroller.Models.events.command.VolumeCmd;
+import com.ssc.shakesocketcontroller.Models.events.signal.AnswerEvent;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;

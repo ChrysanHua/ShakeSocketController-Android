@@ -1,6 +1,6 @@
-package com.ssc.shakesocketcontroller.Transaction.events.signal;
+package com.ssc.shakesocketcontroller.Models.events.signal;
 
-import com.ssc.shakesocketcontroller.Transaction.pojo.MsgPacket;
+import com.ssc.shakesocketcontroller.Models.pojo.MsgPacket;
 
 import java.net.InetAddress;
 

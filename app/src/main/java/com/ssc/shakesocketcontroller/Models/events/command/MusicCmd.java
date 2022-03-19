@@ -1,4 +1,4 @@
-package com.ssc.shakesocketcontroller.Transaction.events.command;
+package com.ssc.shakesocketcontroller.Models.events.command;
 
 public class MusicCmd extends BaseCmdEvent {
 

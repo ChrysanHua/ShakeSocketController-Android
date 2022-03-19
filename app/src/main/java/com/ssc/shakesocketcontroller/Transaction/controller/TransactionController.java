@@ -3,13 +3,13 @@ package com.ssc.shakesocketcontroller.Transaction.controller;
 import android.os.Handler;
 import android.util.Log;
 
-import com.ssc.shakesocketcontroller.Transaction.events.signal.EndRefreshEvent;
-import com.ssc.shakesocketcontroller.Transaction.events.signal.SendUDPEvent;
+import com.ssc.shakesocketcontroller.Models.events.signal.EndRefreshEvent;
+import com.ssc.shakesocketcontroller.Models.events.signal.SendUDPEvent;
 import com.ssc.shakesocketcontroller.Transaction.threads.BroadcastListenThread;
 import com.ssc.shakesocketcontroller.Transaction.threads.TCPConnectThread;
 import com.ssc.shakesocketcontroller.Transaction.threads.TCPHandlerThread;
-import com.ssc.shakesocketcontroller.Transaction.pojo.ComputerInfo;
-import com.ssc.shakesocketcontroller.Transaction.pojo.Configuration;
+import com.ssc.shakesocketcontroller.Models.pojo.ComputerInfo;
+import com.ssc.shakesocketcontroller.Models.pojo.Configuration;
 import com.ssc.shakesocketcontroller.Utils.DeviceUtil;
 
 import org.greenrobot.eventbus.EventBus;
@@ -22,7 +22,6 @@ import java.net.DatagramSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 

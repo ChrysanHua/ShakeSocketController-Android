@@ -2,7 +2,6 @@ package com.ssc.shakesocketcontroller;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.os.PersistableBundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -15,10 +14,10 @@ import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.snackbar.Snackbar;
 import com.ssc.shakesocketcontroller.Transaction.controller.MyApplication;
 import com.ssc.shakesocketcontroller.Transaction.controller.TransactionController;
-import com.ssc.shakesocketcontroller.Transaction.events.signal.BroadcastEvent;
-import com.ssc.shakesocketcontroller.Transaction.events.signal.CtrlStateChangedEvent;
-import com.ssc.shakesocketcontroller.Transaction.events.signal.TCPConnectedEvent;
-import com.ssc.shakesocketcontroller.Transaction.events.signal.TCPDisConnectEvent;
+import com.ssc.shakesocketcontroller.Models.events.signal.BroadcastEvent;
+import com.ssc.shakesocketcontroller.Models.events.signal.CtrlStateChangedEvent;
+import com.ssc.shakesocketcontroller.Models.events.signal.TCPConnectedEvent;
+import com.ssc.shakesocketcontroller.Models.events.signal.TCPDisConnectEvent;
 import com.ssc.shakesocketcontroller.Utils.DeviceUtil;
 
 import org.greenrobot.eventbus.EventBus;

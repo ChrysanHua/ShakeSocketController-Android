@@ -9,7 +9,7 @@ import com.google.android.material.card.MaterialCardView;
 import com.ssc.shakesocketcontroller.R;
 import com.ssc.shakesocketcontroller.Transaction.controller.MyApplication;
 import com.ssc.shakesocketcontroller.Transaction.controller.TransactionController;
-import com.ssc.shakesocketcontroller.Transaction.pojo.ComputerInfo;
+import com.ssc.shakesocketcontroller.Models.pojo.ComputerInfo;
 
 import java.util.List;
 

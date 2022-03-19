@@ -1,4 +1,4 @@
-package com.ssc.shakesocketcontroller.Transaction.pojo;
+package com.ssc.shakesocketcontroller.Models.pojo;
 
 import com.ssc.shakesocketcontroller.Utils.ByteUtil;
 import com.ssc.shakesocketcontroller.Utils.StrUtil;

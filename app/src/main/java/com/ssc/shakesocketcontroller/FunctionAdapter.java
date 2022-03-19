@@ -10,7 +10,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
-import com.ssc.shakesocketcontroller.Transaction.pojo.FunctionStr;
+import com.ssc.shakesocketcontroller.Models.pojo.FunctionStr;
 
 import java.util.Arrays;
 import java.util.List;

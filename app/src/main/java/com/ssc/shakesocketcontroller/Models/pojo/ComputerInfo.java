@@ -1,4 +1,4 @@
-package com.ssc.shakesocketcontroller.Transaction.pojo;
+package com.ssc.shakesocketcontroller.Models.pojo;
 
 import com.google.gson.annotations.SerializedName;
 import com.ssc.shakesocketcontroller.Utils.DeviceUtil;

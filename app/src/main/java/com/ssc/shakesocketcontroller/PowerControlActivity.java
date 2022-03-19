@@ -6,10 +6,10 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
-import com.ssc.shakesocketcontroller.Transaction.events.command.BaseCmdEvent;
-import com.ssc.shakesocketcontroller.Transaction.events.command.ScreenLockCmd;
-import com.ssc.shakesocketcontroller.Transaction.events.command.ShutdownCmd;
-import com.ssc.shakesocketcontroller.Transaction.events.signal.AnswerEvent;
+import com.ssc.shakesocketcontroller.Models.events.command.BaseCmdEvent;
+import com.ssc.shakesocketcontroller.Models.events.command.ScreenLockCmd;
+import com.ssc.shakesocketcontroller.Models.events.command.ShutdownCmd;
+import com.ssc.shakesocketcontroller.Models.events.signal.AnswerEvent;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;

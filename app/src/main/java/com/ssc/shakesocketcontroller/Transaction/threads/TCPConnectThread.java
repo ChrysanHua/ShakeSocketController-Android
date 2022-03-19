@@ -2,7 +2,7 @@ package com.ssc.shakesocketcontroller.Transaction.threads;
 
 import android.util.Log;
 
-import com.ssc.shakesocketcontroller.Transaction.events.signal.ConnectConfirmEvent;
+import com.ssc.shakesocketcontroller.Models.events.signal.ConnectConfirmEvent;
 
 import org.greenrobot.eventbus.EventBus;
 

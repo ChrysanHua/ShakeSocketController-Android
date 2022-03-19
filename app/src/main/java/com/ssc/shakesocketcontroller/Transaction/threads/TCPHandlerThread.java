@@ -2,9 +2,9 @@ package com.ssc.shakesocketcontroller.Transaction.threads;
 
 import android.util.Log;
 
-import com.ssc.shakesocketcontroller.Transaction.events.signal.SendTCPEvent;
-import com.ssc.shakesocketcontroller.Transaction.events.signal.TCPDisConnectEvent;
-import com.ssc.shakesocketcontroller.Transaction.events.signal.TCPReceiveEvent;
+import com.ssc.shakesocketcontroller.Models.events.signal.SendTCPEvent;
+import com.ssc.shakesocketcontroller.Models.events.signal.TCPDisConnectEvent;
+import com.ssc.shakesocketcontroller.Models.events.signal.TCPReceiveEvent;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
