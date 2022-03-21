@@ -13,8 +13,10 @@ public class MyApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        //获取全局应用程序上下文
         appContext = getApplicationContext();
-        //设置Controller静态变量并在此获取？
+        //启动Controller
+        getController().start();
     }
 
     public static TransactionController getController() {

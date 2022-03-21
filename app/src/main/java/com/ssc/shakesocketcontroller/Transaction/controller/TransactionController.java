@@ -3,6 +3,7 @@ package com.ssc.shakesocketcontroller.Transaction.controller;
 import android.os.Handler;
 import android.util.Log;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.ssc.shakesocketcontroller.Models.events.signal.EndRefreshEvent;
 import com.ssc.shakesocketcontroller.Models.events.signal.SendUDPEvent;
 import com.ssc.shakesocketcontroller.Transaction.threads.BroadcastListenThread;
@@ -24,6 +25,9 @@ import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 全局控制器类，使用单例模式
@@ -36,16 +40,19 @@ public final class TransactionController {
     private static final int TCP_PORT = 11019;
 
     private static final int BC_LISTEN_DURATION = 3000;
+    private static final int ASYNC_THREAD_COUNT = 2;
 
     private static final TransactionController controllerInstance = new TransactionController();
 
-    private boolean stopped = true;
+    private boolean stopped = true;                         //启动状态
     private boolean ctrlON = false;                         //控制（Ctrl）状态
     private int lastDestinationID = -1;                     //最后一个导航目的地ID
 
     private final List<ComputerInfo> onlineDeviceList;
     private final List<ComputerInfo> historyDeviceList;
     private final List<ComputerInfo> ctrlDeviceList;
+
+    private ScheduledExecutorService scheduledExecutor;     //异步任务执行器
 
     private BroadcastListenThread bcListener;
     private TCPConnectThread tcpListener;
@@ -140,16 +147,50 @@ public final class TransactionController {
         }
     }
 
-    public Configuration getCurrentConfig() {
-        return config;
-    }
-
+    /**
+     * 获取控制器的关闭/启动状态
+     */
     public boolean isStopped() {
         return stopped;
     }
 
+    public Configuration getCurrentConfig() {
+        return config;
+    }
+
+    /**
+     * 启动全局控制器
+     */
     public void start() {
-        reload();
+        //初始化后台异步执行器，其线程池中的线程将被设置为守护线程
+        scheduledExecutor = Executors.newScheduledThreadPool(ASYNC_THREAD_COUNT,
+                new ThreadFactoryBuilder()
+                        .setNameFormat("pool-SSC-ASYNC-thread-%d")
+                        .setDaemon(true)
+                        .build());
+
+        stopped = false;
+    }
+
+    /**
+     * 关闭全局控制器
+     */
+    public void stop() {
+        scheduledExecutor.shutdown();
+
+        //if (EventBus.getDefault().isRegistered(this)) {
+        //    EventBus.getDefault().unregister(this);
+        //}
+        //msgAdapter.stop();
+        //StopBroadcastListener();
+        //StopTCPListener();
+        //StopTCPHandler();
+        //if (udpSender != null) {
+        //    udpSender.close();
+        //    udpSender = null;
+        //}
+
+        stopped = true;
     }
 
     protected void reload() {
@@ -164,21 +205,6 @@ public final class TransactionController {
         msgAdapter.start();
         StartBroadcastListener();
         stopped = false;
-    }
-
-    public void stop() {
-        if (EventBus.getDefault().isRegistered(this)) {
-            EventBus.getDefault().unregister(this);
-        }
-        msgAdapter.stop();
-        StopBroadcastListener();
-        StopTCPListener();
-        StopTCPHandler();
-        if (udpSender != null) {
-            udpSender.close();
-            udpSender = null;
-        }
-        stopped = true;
     }
 
     public void StartBroadcastListener() {
@@ -257,6 +283,22 @@ public final class TransactionController {
             //模拟本地读取的耗时过程
             EventBus.getDefault().post(new EndRefreshEvent(historyDeviceList.size(), false));
         }, 1500));
+    }
+
+    /**
+     * 设定一个延时异步执行的任务
+     */
+    public void schedule(Runnable command, long delay, TimeUnit unit) {
+        if (!scheduledExecutor.isShutdown()) {
+            scheduledExecutor.schedule(command, delay, unit);
+        }
+    }
+
+    /**
+     * 设定一个延时异步执行的任务（以毫秒为延时单位）
+     */
+    public void schedule(Runnable command, long millisecondDelay) {
+        schedule(command, millisecondDelay, TimeUnit.MILLISECONDS);
     }
 
 
