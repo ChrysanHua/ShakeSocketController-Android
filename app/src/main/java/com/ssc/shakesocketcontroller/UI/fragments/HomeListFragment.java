@@ -32,10 +32,8 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 public class HomeListFragment extends Fragment {
     private static final String TAG = "HomeListFragment";
 
-    // TODO: 2022/3/10 Ctrl开了以后，已勾选的要逐个去连接，用EventBus进行通知↓？
-    //  EventBus.getDefault().post(new LaunchConnectEvent(computerInfo.getMacStr()));
-
     private boolean curIsOnlineView;            //当前处于哪种界面（在线/历史）
+    private boolean isFirstResume;              //是否CreateView后首次进入Resume
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -43,6 +41,7 @@ public class HomeListFragment extends Fragment {
         //获取当前处于哪种界面
         curIsOnlineView = getArguments() == null || getArguments().getBoolean(
                 MyApplication.appContext.getString(R.string.arg_name_online_flag), true);
+        Log.i(TAG, "onCreate: curIsOnlineView? -> " + curIsOnlineView);
     }
 
     @Nullable
@@ -50,6 +49,9 @@ public class HomeListFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater,
                              @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
+        Log.i(TAG, "onCreateView: curIsOnlineView? -> " + curIsOnlineView);
+        //初始化FirstResume状态
+        isFirstResume = true;
         return inflater.inflate(R.layout.fragment_home_list, container, false);
     }
 
@@ -74,6 +76,7 @@ public class HomeListFragment extends Fragment {
                 MyApplication.getController().setLastDestinationID(-1);
             }
         }
+        Log.i(TAG, "onViewCreated: curIsOnlineView? -> " + curIsOnlineView);
     }
 
     @Override
@@ -90,35 +93,61 @@ public class HomeListFragment extends Fragment {
         recyclerView.setAdapter(new OnlyCPInfoAdapter(curIsOnlineView));
         //更新中央提示文字的可见性
         updateTipsVisibility();
+        Log.i(TAG, "onActivityCreated: curIsOnlineView? -> " + curIsOnlineView);
     }
 
     @Override
     public void onStart() {
         super.onStart();
         EventBus.getDefault().register(this);
-        Log.i(TAG, "onStart: ");
+        //主动检索执行sticky的刷新完毕事件，因为它需要MAIN_ORDERED模式，调用不及时，故不适合直接设置sticky注解
+        EndRefreshEvent event = EventBus.getDefault().getStickyEvent(EndRefreshEvent.class);
+        if (event != null) {
+            onEndRefreshEvent(event);
+        }
+        Log.i(TAG, "onStart: curIsOnlineView? -> " + curIsOnlineView);
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        if (!MyApplication.getController().isCtrlON()) {
-            //未启动控制，进入界面时自动执行一次刷新
-            setSwipeRefreshing(true);
-            refreshContentData();
+        Log.i(TAG, "onResume: curIsOnlineView? -> " + curIsOnlineView);
+        //仅在创建Fragment后首次进入界面时进行自动刷新（从抽屉菜单打开时，每次都会重新创建）
+        if (isFirstResume) {
+            //重置FirstResume状态
+            isFirstResume = false;
+            //只有当Ctrl-OFF时才自动刷新
+            if (!MyApplication.getController().isCtrlON()) {
+                //未启动控制，进入界面时自动执行一次刷新
+                setSwipeRefreshing(true);
+                refreshContentData();
+            }
         }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        Log.i(TAG, "onPause: curIsOnlineView? -> " + curIsOnlineView);
     }
 
     @Override
     public void onStop() {
         EventBus.getDefault().unregister(this);
         super.onStop();
+        Log.i(TAG, "onStop: curIsOnlineView? -> " + curIsOnlineView);
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        Log.i(TAG, "onDestroyView: curIsOnlineView? -> " + curIsOnlineView);
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
-        Log.i(TAG, "onDestroy: " + curIsOnlineView);
+        Log.i(TAG, "onDestroy: curIsOnlineView? -> " + curIsOnlineView);
     }
 
     /**
@@ -172,20 +201,25 @@ public class HomeListFragment extends Fragment {
      */
     @Subscribe(threadMode = ThreadMode.MAIN_ORDERED)
     public void onEndRefreshEvent(EndRefreshEvent event) {
-        if (event.isOnlineRefresh() == curIsOnlineView) {
+        //无论如何，先移除sticky事件
+        EventBus.getDefault().removeStickyEvent(event);
+        //只执行与界面类型相匹配的事件；Fragment创建后首次进入界面无需执行实际刷新，因为创建时已匹配最新数据
+        if (event.isOnlineRefresh() == curIsOnlineView && !isFirstResume) {
             //通知Adapter更新
             notifyDataAllChanged();
             //停止刷新进度条
             setSwipeRefreshing(false);
             //更新中央提示文字的可见性
             updateTipsVisibility();
+            Log.i(TAG, "onEndRefreshEvent: real done");
         }
+        Log.i(TAG, "onEndRefreshEvent: finish");
     }
 
     /**
      * 控制状态变更事件
      */
-    @Subscribe(threadMode = ThreadMode.MAIN)
+    @Subscribe(threadMode = ThreadMode.MAIN_ORDERED)
     public void onCtrlStateChangedEvent(CtrlStateChangedEvent event) {
         //通知Adapter更新
         notifyDataAllChanged();

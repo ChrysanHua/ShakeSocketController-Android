@@ -13,13 +13,12 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.snackbar.Snackbar;
 import com.ssc.shakesocketcontroller.FunctionActivity;
-import com.ssc.shakesocketcontroller.R;
-import com.ssc.shakesocketcontroller.Transaction.controller.MyApplication;
-import com.ssc.shakesocketcontroller.Transaction.controller.TransactionController;
-import com.ssc.shakesocketcontroller.Models.events.signal.BroadcastEvent;
 import com.ssc.shakesocketcontroller.Models.events.signal.CtrlStateChangedEvent;
 import com.ssc.shakesocketcontroller.Models.events.signal.TCPConnectedEvent;
 import com.ssc.shakesocketcontroller.Models.events.signal.TCPDisConnectEvent;
+import com.ssc.shakesocketcontroller.R;
+import com.ssc.shakesocketcontroller.Transaction.controller.MyApplication;
+import com.ssc.shakesocketcontroller.Transaction.controller.TransactionController;
 import com.ssc.shakesocketcontroller.Utils.DeviceUtil;
 
 import org.greenrobot.eventbus.EventBus;
@@ -83,7 +82,9 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        Log.i(TAG, "before super onCreate: for HomeListFragment");
         super.onCreate(savedInstanceState);
+        Log.i(TAG, "after super onCreate: for HomeListFragment");
         setContentView(R.layout.activity_main);
         //标题栏
         Toolbar toolbar = findViewById(R.id.toolbar);
@@ -165,15 +166,21 @@ public class MainActivity extends AppCompatActivity {
 
         //进入Activity先根据Ctrl状态更新UI
         setUIState(controller.isCtrlON());
+        Log.i(TAG, "finish onCreate: for HomeListFragment");
     }
 
     @Override
     protected void onStart() {
         super.onStart();
         EventBus.getDefault().register(this);
+        if (!EventBus.getDefault().isRegistered(controller)) {
+            //临时
+            EventBus.getDefault().register(controller);
+        }
         //进入界面时如果已经处于上次退出时的界面（即未显式导航就已经在目的地），则需要重置为初始状态
         if (controller.isCtrlON() &&
-                mNavController.getCurrentDestination().getId() == controller.getLastDestinationID()) {
+                Objects.requireNonNull(mNavController.getCurrentDestination()).getId()
+                        == controller.getLastDestinationID()) {
             controller.setLastDestinationID(-1);
         }
         Log.i(TAG, "onStart: ");
@@ -192,6 +199,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        EventBus.getDefault().unregister(controller);
         //controller.stop();
         super.onDestroy();
         Log.i(TAG, "onDestroy: ");
@@ -263,7 +271,10 @@ public class MainActivity extends AppCompatActivity {
         controller.setCtrlON(!controller.isCtrlON());
         //post控制状态变更事件
         EventBus.getDefault().post(new CtrlStateChangedEvent(controller.isCtrlON()));
-        // TODO: 2022/3/11
+
+        // TODO: 2022/3/24 全部发送完连接信号后，启动延时任务，超时未连接（未收到确认信号）则通知变更UI；
+        //  如果收到确认信号，则用EventBus进行通知↓？
+        //  EventBus.getDefault().post(new LaunchConnectEvent(computerInfo.getMacStr()));
         //变更连接监听服务的状态
 
         //执行连接握手，逐一连接控制列表里的设备
@@ -308,19 +319,6 @@ public class MainActivity extends AppCompatActivity {
         //        getResources(),
         //        enabled ? R.color.fabON : R.color.fabOFF,
         //        getTheme()));
-    }
-
-    @Subscribe(threadMode = ThreadMode.MAIN)
-    public void onBroadcastEvent(BroadcastEvent event) {
-        //if (event != null || infos == null) {
-        //    infos = controller.getCurrentDevices();
-        //}
-        //computerInfoAdapter.updateViewList(infos);
-        //if (infos.size() <= 0) {
-        //    emptyTextView.setVisibility(View.VISIBLE);
-        //} else {
-        //    emptyTextView.setVisibility(View.GONE);
-        //}
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
