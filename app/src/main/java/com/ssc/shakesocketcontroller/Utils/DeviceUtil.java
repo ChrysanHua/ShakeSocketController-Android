@@ -4,11 +4,13 @@ import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Build;
+import android.os.NetworkOnMainThreadException;
 import android.provider.Settings;
 import android.util.Log;
 
 import com.ssc.shakesocketcontroller.Transaction.controller.MyApplication;
 
+import java.net.DatagramSocket;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
@@ -36,6 +38,22 @@ public final class DeviceUtil {
     }
 
     public static InetAddress getLocalAddress() {
+        try (final DatagramSocket socket = new DatagramSocket()) {
+            //because it is udp socket, it will perform an invalid connect operation
+            socket.connect(InetAddress.getByName("8.8.8.8"), 12000);
+            //but we can still get the IP from it
+            return socket.getLocalAddress();
+        } catch (NetworkOnMainThreadException e) {
+            // TODO: 2022/3/29 仅用于当前开发阶段（因为上述获取IP的新方法不能在主线程中执行），后续应当完成废弃该方法！
+            return getLocalAddressSpare();
+        } catch (Exception e) {
+            Log.e(TAG, "getLocalAddress: failed", e);
+        }
+        return null;
+    }
+
+    //Deprecated! Because this method is unreliable.
+    private static InetAddress getLocalAddressSpare() {
         try {
             for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces();
                  en.hasMoreElements(); ) {
