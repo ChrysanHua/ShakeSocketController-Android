@@ -44,8 +44,8 @@ public class MsgPacket {
     }
 
     public byte[] getMsgData() {
-        return ByteUtil.concatByte(ByteUtil.fixLen(StrUtil.StrToByte(typeStr),
-                TYPE_LENGTH), StrUtil.StrToByte(dataStr));
+        return ByteUtil.concatByte(ByteUtil.fixLen(StrUtil.strToByte(typeStr),
+                TYPE_LENGTH), StrUtil.strToByte(dataStr));
     }
 
     public boolean checkTypeStr(String TYPE_STR) {
@@ -65,8 +65,8 @@ public class MsgPacket {
         }
 
         public Builder(byte[] msgData) {
-            mTypeStr = StrUtil.ByteToStr(ByteUtil.subByte(msgData, 0, TYPE_LENGTH)).trim();
-            mDataStr = StrUtil.ByteToStr(ByteUtil.subByte(msgData,
+            mTypeStr = StrUtil.byteToStr(ByteUtil.subByte(msgData, 0, TYPE_LENGTH)).trim();
+            mDataStr = StrUtil.byteToStr(ByteUtil.subByte(msgData,
                     TYPE_LENGTH, msgData.length - TYPE_LENGTH));
         }
 
@@ -84,7 +84,7 @@ public class MsgPacket {
         }
 
         public Builder dataStr(byte[] dataStrBuf) {
-            mDataStr = StrUtil.ByteToStr(dataStrBuf);
+            mDataStr = StrUtil.byteToStr(dataStrBuf);
             return this;
         }
 

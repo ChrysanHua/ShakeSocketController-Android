@@ -20,6 +20,7 @@ import com.ssc.shakesocketcontroller.R;
 import com.ssc.shakesocketcontroller.Transaction.controller.MyApplication;
 import com.ssc.shakesocketcontroller.Transaction.controller.TransactionController;
 import com.ssc.shakesocketcontroller.Utils.DeviceUtil;
+import com.ssc.shakesocketcontroller.Utils.StrUtil;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -297,7 +298,7 @@ public class MainActivity extends AppCompatActivity {
         if (enabled) {
             holder.rootView.setBackgroundResource(R.drawable.bg_side_nav_bar_on);
             String ipStr = DeviceUtil.getLocalIP();
-            holder.deviceIP.setText(ipStr == null ? null : String.format("(%s)", ipStr));
+            holder.deviceIP.setText(StrUtil.isNullOrEmpty(ipStr) ? null : String.format("(%s)", ipStr));
             int ctrlCount = controller.getCtrlDevicesCount();
             if (ctrlCount == 1) {
                 holder.ctrlCount.setText(controller.getCtrlDevices().get(0).address.getHostAddress());

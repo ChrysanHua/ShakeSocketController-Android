@@ -1,6 +1,6 @@
 package com.ssc.shakesocketcontroller.Models.events.signal;
 
-import com.ssc.shakesocketcontroller.Utils.StrUtil;
+import com.ssc.shakesocketcontroller.Utils.DeviceUtil;
 
 import java.net.InetAddress;
 import java.net.Socket;
@@ -22,6 +22,6 @@ public class ConnectConfirmEvent {
     }
 
     public String getTargetMacStr() {
-        return StrUtil.MacToStr(getTargetAddress());
+        return DeviceUtil.getMacAddressStr(getTargetAddress());
     }
 }
