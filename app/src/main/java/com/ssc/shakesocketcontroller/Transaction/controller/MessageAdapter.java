@@ -14,7 +14,7 @@ import com.ssc.shakesocketcontroller.Models.events.signal.SendUDPEvent;
 import com.ssc.shakesocketcontroller.Models.events.signal.TCPConnectedEvent;
 import com.ssc.shakesocketcontroller.Models.events.signal.TCPReceiveEvent;
 import com.ssc.shakesocketcontroller.Models.pojo.ComputerInfo;
-import com.ssc.shakesocketcontroller.Models.pojo.Configuration;
+import com.ssc.shakesocketcontroller.Models.pojo.AppConfig;
 import com.ssc.shakesocketcontroller.Models.pojo.MsgPacket;
 
 import org.greenrobot.eventbus.EventBus;
@@ -28,7 +28,7 @@ public class MessageAdapter {
     private static final String TAG = "MessageAdapter";
 
     private TransactionController controller;
-    private Configuration config;
+    private AppConfig config;
 
     private HashMap<String, ComputerInfo> targetMap;
     private String curTargetMacStr;
@@ -70,10 +70,10 @@ public class MessageAdapter {
                     //save targetInfo
                     targetMap.put(packet.getTargetInfo().getMacStr(), packet.getTargetInfo());
                     //send localInfo back
-                    MsgPacket bcBackPacket = new MsgPacket.Builder(MsgPacket.TYPE_IP)
-                            .dataStr(gson.toJson(config.getLocalInfo())).build();
-                    bcBackPacket.setTargetInfo(packet.getTargetInfo());
-                    EventBus.getDefault().post(new SendUDPEvent(bcBackPacket));
+                    //MsgPacket bcBackPacket = new MsgPacket.Builder(MsgPacket.TYPE_IP)
+                    //        .dataStr(gson.toJson(config.getLocalInfo())).build();
+                    //bcBackPacket.setTargetInfo(packet.getTargetInfo());
+                    //EventBus.getDefault().post(new SendUDPEvent(bcBackPacket));
                     return;
                 }
             }
@@ -92,10 +92,10 @@ public class MessageAdapter {
             //stop BroadcastListener
             controller.StopBroadcastListener();
             //send UDP localInfo packet to target
-            MsgPacket packet = new MsgPacket.Builder(MsgPacket.TYPE_GUN)
-                    .dataStr(gson.toJson(config.getLocalInfo())).build();
-            packet.setTargetInfo(targetMap.get(curTargetMacStr));
-            EventBus.getDefault().post(new SendUDPEvent(packet));
+            //MsgPacket packet = new MsgPacket.Builder(MsgPacket.TYPE_GUN)
+            //        .dataStr(gson.toJson(config.getLocalInfo())).build();
+            //packet.setTargetInfo(targetMap.get(curTargetMacStr));
+            //EventBus.getDefault().post(new SendUDPEvent(packet));
         }
     }
 

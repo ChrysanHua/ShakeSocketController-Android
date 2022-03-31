@@ -12,7 +12,7 @@ import com.ssc.shakesocketcontroller.Transaction.threads.BroadcastListener;
 import com.ssc.shakesocketcontroller.Transaction.threads.TCPConnectThread;
 import com.ssc.shakesocketcontroller.Transaction.threads.TCPHandlerThread;
 import com.ssc.shakesocketcontroller.Models.pojo.ComputerInfo;
-import com.ssc.shakesocketcontroller.Models.pojo.Configuration;
+import com.ssc.shakesocketcontroller.Models.pojo.AppConfig;
 import com.ssc.shakesocketcontroller.Utils.DeviceUtil;
 
 import org.greenrobot.eventbus.EventBus;
@@ -24,6 +24,7 @@ import org.greenrobot.eventbus.util.ThrowableFailureEvent;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.ArrayList;
@@ -74,18 +75,23 @@ public final class TransactionController {
 
     private ScheduledExecutorService scheduledExecutor;     //异步延时任务执行器
     private BroadcastListener bcListener;                   //广播监听器
+    private AppConfig config;                               //APP配置
 
     private TCPConnectThread tcpListener;
     private TCPHandlerThread tcpHandler;
     private MessageAdapter msgAdapter;
     private DatagramSocket udpSender;
-    private Configuration config;
 
     private TransactionController() {
-        onlineDeviceList = BuildTestCPInfos(10, true);
-        historyDeviceList = BuildTestCPInfos(3, false);
-        ctrlDeviceList = BuildTestCPInfos(0, true);
-        config = Configuration.load();
+        onlineDeviceList = createTestCPInfoList(10, true);
+        historyDeviceList = createTestCPInfoList(3, false);
+        ctrlDeviceList = createTestCPInfoList(0, true);
+        try {
+            config = AppConfig.load();
+        } catch (Exception e) {
+            //应注意这个异常是致命的
+            Log.e(TAG, "TransactionController: ", e);
+        }
         //msgAdapter = new MessageAdapter(this);
         Log.i(TAG, "TransactionController: instantiation OK");
     }
@@ -94,12 +100,12 @@ public final class TransactionController {
         return controllerInstance;
     }
 
-    private List<ComputerInfo> BuildTestCPInfos(int count, boolean online) {
+    public static List<ComputerInfo> createTestCPInfoList(int count, boolean online) {
         //测试用，生成临时测试数据
+        InetAddress address = DeviceUtil.getLocalAddress();
         List<ComputerInfo> infos = new ArrayList<>(count);
         for (int i = 1; i <= count; i++) {
-            ComputerInfo cp = new ComputerInfo(DeviceUtil.getLocalAddress(),
-                    "CP" + i, "NickName" + i + online);
+            ComputerInfo cp = new ComputerInfo(address, "CP" + i, "NickName" + i + online);
             cp.isOnline = online || i % 2 == 0;
             cp.isSaved = (i <= 2);
             //cp.isConnected = (i == 2 || i == 11);
@@ -174,7 +180,10 @@ public final class TransactionController {
         return stopped;
     }
 
-    public Configuration getCurrentConfig() {
+    /**
+     * 获取当前已加载的APP配置
+     */
+    public AppConfig getCurrentConfig() {
         return config;
     }
 
@@ -191,7 +200,9 @@ public final class TransactionController {
         //初始化广播监听器
         bcListener = new BroadcastListener(BC_PORT, BC_LISTEN_DURATION, scheduledExecutor);
 
-        EventBus.getDefault().register(this);
+        if (!EventBus.getDefault().isRegistered(this)) {
+            EventBus.getDefault().register(this);
+        }
         stopped = false;
     }
 
@@ -204,9 +215,6 @@ public final class TransactionController {
         bcListener.close();
         scheduledExecutor.shutdown();
 
-        //if (EventBus.getDefault().isRegistered(this)) {
-        //    EventBus.getDefault().unregister(this);
-        //}
         //msgAdapter.stop();
         //StopBroadcastListener();
         //StopTCPListener();
@@ -216,6 +224,9 @@ public final class TransactionController {
         //    udpSender = null;
         //}
 
+        if (EventBus.getDefault().isRegistered(this)) {
+            EventBus.getDefault().unregister(this);
+        }
         stopped = true;
     }
 
@@ -331,7 +342,7 @@ public final class TransactionController {
         if (event.shouldSaveResult()) {
             //模拟BC改变在线列表
             Random random = new Random();
-            List<ComputerInfo> newList = BuildTestCPInfos(random.nextInt(10), true);
+            List<ComputerInfo> newList = createTestCPInfoList(random.nextInt(10), true);
             onlineDeviceList.clear();
             onlineDeviceList.addAll(newList);
             //post刷新完成事件
