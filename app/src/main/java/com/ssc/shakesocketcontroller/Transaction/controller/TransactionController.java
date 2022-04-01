@@ -1,19 +1,19 @@
 package com.ssc.shakesocketcontroller.Transaction.controller;
 
-import android.os.Handler;
 import android.util.Log;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.ssc.shakesocketcontroller.Models.events.signal.BroadcastEvent;
 import com.ssc.shakesocketcontroller.Models.events.signal.EndBroadcastEvent;
+import com.ssc.shakesocketcontroller.Models.events.signal.EndReadHistoryEvent;
 import com.ssc.shakesocketcontroller.Models.events.signal.EndRefreshEvent;
 import com.ssc.shakesocketcontroller.Models.events.signal.SendUDPEvent;
+import com.ssc.shakesocketcontroller.Models.pojo.AppConfig;
+import com.ssc.shakesocketcontroller.Models.pojo.ComputerInfo;
 import com.ssc.shakesocketcontroller.Transaction.threads.BroadcastListener;
+import com.ssc.shakesocketcontroller.Transaction.threads.HistoryWorker;
 import com.ssc.shakesocketcontroller.Transaction.threads.TCPConnectThread;
 import com.ssc.shakesocketcontroller.Transaction.threads.TCPHandlerThread;
-import com.ssc.shakesocketcontroller.Models.pojo.ComputerInfo;
-import com.ssc.shakesocketcontroller.Models.pojo.AppConfig;
-import com.ssc.shakesocketcontroller.Utils.DeviceUtil;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -24,10 +24,8 @@ import org.greenrobot.eventbus.util.ThrowableFailureEvent;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Executors;
@@ -37,7 +35,7 @@ import java.util.concurrent.TimeUnit;
 
 // TODO: 2022/3/24 MsgAdapter每收到一次BCEvent就应该缓存起来，这时应后历史列表对比，复用其元素，
 //  最后收到EndBCEvent再整体处理，然后通知列表Adapter更新并停止刷新UI；
-//  MsgAdapter需要根据Ctrl状态判断是否处理数据;
+//  MsgAdapter需要根据Ctrl状态判断是否处理数据（包括广播和历史）;
 //  以及考虑中止后还是收到“处理”指令（即全空广播数据的处理）；
 
 // TODO: 2022/3/17 正常UDP通讯端看看发送和接收是否需要分开Socket，双方均需常驻，特别是接收方；
@@ -75,6 +73,7 @@ public final class TransactionController {
 
     private ScheduledExecutorService scheduledExecutor;     //异步延时任务执行器
     private BroadcastListener bcListener;                   //广播监听器
+    private HistoryWorker historyWorker;                    //历史连接信息记录器
     private AppConfig config;                               //APP配置
 
     private TCPConnectThread tcpListener;
@@ -82,10 +81,15 @@ public final class TransactionController {
     private MessageAdapter msgAdapter;
     private DatagramSocket udpSender;
 
+
+    static TransactionController getInstance() {
+        return controllerInstance;
+    }
+
     private TransactionController() {
-        onlineDeviceList = createTestCPInfoList(10, true);
-        historyDeviceList = createTestCPInfoList(3, false);
-        ctrlDeviceList = createTestCPInfoList(0, true);
+        onlineDeviceList = MyApplication.createTestCPInfoList(10, true);
+        historyDeviceList = MyApplication.createTestCPInfoList(3, false);
+        ctrlDeviceList = MyApplication.createTestCPInfoList(0, true);
         try {
             config = AppConfig.load();
         } catch (Exception e) {
@@ -95,26 +99,6 @@ public final class TransactionController {
         //msgAdapter = new MessageAdapter(this);
         Log.i(TAG, "TransactionController: instantiation OK");
     }
-
-    static TransactionController getInstance() {
-        return controllerInstance;
-    }
-
-    public static List<ComputerInfo> createTestCPInfoList(int count, boolean online) {
-        //测试用，生成临时测试数据
-        InetAddress address = DeviceUtil.getLocalAddress();
-        List<ComputerInfo> infos = new ArrayList<>(count);
-        for (int i = 1; i <= count; i++) {
-            ComputerInfo cp = new ComputerInfo(address, "CP" + i, "NickName" + i + online);
-            cp.isOnline = online || i % 2 == 0;
-            cp.isSaved = (i <= 2);
-            //cp.isConnected = (i == 2 || i == 11);
-            cp.isChecked = (i <= 2);
-            infos.add(cp);
-        }
-        return infos;
-    }
-
 
     public List<ComputerInfo> getCurrentDevices(boolean isOnline) {
         return isOnline ? onlineDeviceList : historyDeviceList;
@@ -199,6 +183,8 @@ public final class TransactionController {
                         .build());
         //初始化广播监听器
         bcListener = new BroadcastListener(BC_PORT, BC_LISTEN_DURATION, scheduledExecutor);
+        //初始化历史连接记录器
+        historyWorker = new HistoryWorker(scheduledExecutor);
 
         if (!EventBus.getDefault().isRegistered(this)) {
             EventBus.getDefault().register(this);
@@ -289,7 +275,9 @@ public final class TransactionController {
      * 执行一次广播监听，监听将持续一段时间然后自动结束
      */
     public void observeBCOnce() {
-        // TODO: 2022/3/23 如果正在读取历史则通知其取消读取，因为设备信息数据列表会有冲突
+        // TODO: 2022/4/1 MsgAdapter在收到空广播之后、广播完成之前，
+        //  如果有历史读取完成事件发生，应当优先保证执行历史读取行为（事实上任何时候广播都应该等历史）
+        // TODO: 2022/4/1 在AppConfig加个是否自动刷新的配置选项
         //如果正在监听则忽略本次调用
         if (!bcListener.isListening()) {
             //post空广播事件，通知准备开始广播监听
@@ -307,14 +295,16 @@ public final class TransactionController {
      * 执行一次历史读取
      */
     public void readHistoryOnce() {
-        // TODO: 2022/3/10 先获取是否正在读取历史（上一次读取尚未结束），不是的话才执行读取；
-        //  从本地读取历史设备列表，这时应该和在线列表逐一对比，复用其中的元素；
-        // TODO: 2022/3/11 历史读取内部实现应订阅CtrlStateChangedEvent事件，
-        //  如果处于Ctrl-ON状态，应当立即停止当前的刷新行为；
-        Log.i(TAG, "readHistoryOnce: " + new Handler().postDelayed(() -> {
-            //模拟本地读取的耗时过程
-            EventBus.getDefault().postSticky(new EndRefreshEvent(historyDeviceList.size(), false));
-        }, 1500));
+        // TODO: 2022/4/1 进入APP时应当先读取一次历史记录
+        //如果正在读取则忽略本次调用
+        if (!historyWorker.isReading()) {
+            if (bcListener.isListening()) {
+                //如果正在监听广播则停止它
+                bcListener.stop(false);
+            }
+            //开始读取
+            historyWorker.readStart();
+        }
     }
 
     /**
@@ -342,13 +332,22 @@ public final class TransactionController {
         if (event.shouldSaveResult()) {
             //模拟BC改变在线列表
             Random random = new Random();
-            List<ComputerInfo> newList = createTestCPInfoList(random.nextInt(10), true);
+            List<ComputerInfo> newList = MyApplication.createTestCPInfoList(random.nextInt(10), true);
             onlineDeviceList.clear();
             onlineDeviceList.addAll(newList);
             //post刷新完成事件
             EventBus.getDefault().postSticky(new EndRefreshEvent(onlineDeviceList.size(), true));
             Log.i(TAG, "onEndBroadcastEvent: after post EndRefreshEvent");
         }
+    }
+
+    @Subscribe
+    public void onEndReadHistoryEvent(EndReadHistoryEvent event) {
+        //测试方法，该方法应该出现在MsgAdapter里
+        Log.i(TAG, "onEndReadHistoryEvent: " + event.getHistoryList().size());
+        //post刷新完成事件
+        EventBus.getDefault().postSticky(new EndRefreshEvent(historyDeviceList.size(), false));
+        Log.i(TAG, "onEndReadHistoryEvent: after post EndRefreshEvent");
     }
 
     @Subscribe(threadMode = ThreadMode.ASYNC)
