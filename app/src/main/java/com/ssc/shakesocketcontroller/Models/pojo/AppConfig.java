@@ -17,6 +17,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
+// TODO: 2022/4/4 将APP配置项替换到各个对应地方，去除原先的常量
+
 /**
  * APP设置数据类
  */
@@ -30,6 +32,9 @@ public class AppConfig {
     public int bcPort;                          //广播监听端口
     public int bcListenDuration;                //单次广播监听时长
     public int bcMaxReceiveBufSize;             //接收广播数据包的Buf大小
+
+    public boolean ignoredSameHistory;          //广播监听时忽略相似的历史连接
+    public boolean autoSwipeRefresh;            //进入列表时自动下拉刷新
 
     public final transient String deviceName;   //本机设备名
 
@@ -45,6 +50,9 @@ public class AppConfig {
         this.bcPort = 19019;
         this.bcListenDuration = 3000;
         this.bcMaxReceiveBufSize = 4096;
+
+        this.ignoredSameHistory = false;
+        this.autoSwipeRefresh = true;
     }
 
 

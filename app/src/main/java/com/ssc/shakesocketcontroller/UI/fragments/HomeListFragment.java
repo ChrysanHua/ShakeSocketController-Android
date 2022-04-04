@@ -117,7 +117,8 @@ public class HomeListFragment extends Fragment {
             //重置FirstResume状态
             isFirstResume = false;
             //只有当Ctrl-OFF时才自动刷新
-            if (!MyApplication.getController().isCtrlON()) {
+            if (!MyApplication.getController().isCtrlON()
+                    && MyApplication.getController().getCurrentConfig().autoSwipeRefresh) {
                 //未启动控制，进入界面时自动执行一次刷新
                 setSwipeRefreshing(true);
                 refreshContentData();

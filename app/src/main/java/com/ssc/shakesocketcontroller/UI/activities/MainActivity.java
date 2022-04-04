@@ -188,6 +188,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        Log.e(TAG, "onSaveInstanceState: ");
+    }
+
+    @Override
+    protected void onRestoreInstanceState(@NonNull Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+        Log.e(TAG, "onRestoreInstanceState: ");
+    }
+
+    @Override
     protected void onStop() {
         EventBus.getDefault().unregister(this);
         super.onStop();
@@ -251,14 +263,14 @@ public class MainActivity extends AppCompatActivity {
 
         //处理标题栏各Action按钮
         if (id == R.id.action_settings) {
-            Log.i(TAG, "cur destination: " + mNavController.getCurrentDestination().getLabel());
-            Log.i(TAG, "dest ID: " + mNavController.getCurrentDestination().getId()
-                    + ", last ID: " + controller.getLastDestinationID());
+            //Log.i(TAG, "cur destination: " + mNavController.getCurrentDestination().getLabel());
+            //Log.i(TAG, "dest ID: " + mNavController.getCurrentDestination().getId()
+            //        + ", last ID: " + controller.getLastDestinationID());
             return true;
         } else if (id == R.id.action_about) {
-            NavigationView navigationView = findViewById(R.id.nav_view);
-            Log.i(TAG, "cur checkedItem: " + (navigationView.getCheckedItem() == null ? null
-                    : navigationView.getCheckedItem().getTitle()));
+            //NavigationView navigationView = findViewById(R.id.nav_view);
+            //Log.i(TAG, "cur checkedItem: " + (navigationView.getCheckedItem() == null ? null
+            //        : navigationView.getCheckedItem().getTitle()));
             return true;
         }
 
@@ -273,8 +285,9 @@ public class MainActivity extends AppCompatActivity {
         //post控制状态变更事件
         EventBus.getDefault().post(new CtrlStateChangedEvent(controller.isCtrlON()));
 
-        // TODO: 2022/3/24 全部发送完连接信号后，启动延时任务，超时未连接（未收到确认信号）则通知变更UI；
-        //  如果收到确认信号，则用EventBus进行通知↓？
+        // TODO: 2022/3/24 全部发送完连接信号后，启动延时任务，同时每隔一段时间再发一次，
+        //  超时还是未连接（未收到确认信号）则通知变更UI并对已连接设备统一执行保存历史操作，等待电脑用户确认的情况除外；
+        //  如果收到确认信号，则用EventBus进行通知↓？通知改变对应连接的数据以及UI；
         //  EventBus.getDefault().post(new LaunchConnectEvent(computerInfo.getMacStr()));
         //变更连接监听服务的状态
 
@@ -301,7 +314,7 @@ public class MainActivity extends AppCompatActivity {
             holder.deviceIP.setText(StrUtil.isNullOrEmpty(ipStr) ? null : String.format("(%s)", ipStr));
             int ctrlCount = controller.getCtrlDevicesCount();
             if (ctrlCount == 1) {
-                holder.ctrlCount.setText(controller.getCtrlDevices().get(0).address.getHostAddress());
+                holder.ctrlCount.setText(controller.getCtrlDevices().get(0).getIP());
                 holder.ctrlState.setText(R.string.tip_nav_ctrl_on_single);
             } else if (ctrlCount == 0) {
                 holder.ctrlCount.setText(null);

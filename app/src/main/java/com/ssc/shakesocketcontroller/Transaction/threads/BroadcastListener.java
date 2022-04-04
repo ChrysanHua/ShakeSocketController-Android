@@ -88,7 +88,11 @@ public class BroadcastListener {
 
             //because it is not actively stopped, it needs to be closed manually
             listening = false;
+            //at first, discard the listening results
             stop(false);
+            //then notify to stop the refresh
+            stop(true);
+            // TODO: 2022/4/4 上面接住Exception（或生成），然后这里再次抛出该异常，以便对外告知广播监听异常终止
         });
     }
 
@@ -126,8 +130,8 @@ public class BroadcastListener {
             return;
         }
 
-        if (!saveResult && saveFuture != null) {
-            //get not save command, stop the schedule task immediately anyway.
+        if (saveFuture != null) {
+            //get stop command, stop the schedule task immediately anyway.
             //note that when you cancel it, it becomes isDone.
             saveFuture.cancel(false);
         }
@@ -145,8 +149,7 @@ public class BroadcastListener {
         }
 
         //post EndBroadcastEvent
-        boolean res = saveResult && saveFuture != null && !saveFuture.isDone();
-        EventBus.getDefault().post(new EndBroadcastEvent(res));
+        EventBus.getDefault().post(new EndBroadcastEvent(saveResult));
     }
 
     /**

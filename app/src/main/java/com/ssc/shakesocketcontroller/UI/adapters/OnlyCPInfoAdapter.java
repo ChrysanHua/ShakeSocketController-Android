@@ -70,7 +70,7 @@ public class OnlyCPInfoAdapter extends RecyclerView.Adapter<OnlyCPInfoAdapter.Vi
                 notifyItemChanged(position);
             } else {
                 //历史设备界面则打开连接设置界面
-                // TODO: 2022/3/6
+                // TODO: 2022/3/6 打开设备连接设置界面
             }
         });
         return holder;

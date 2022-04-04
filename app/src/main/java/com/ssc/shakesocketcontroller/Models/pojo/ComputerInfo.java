@@ -9,7 +9,7 @@ import java.util.Objects;
 
 import androidx.annotation.NonNull;
 
-// TODO: 2022/4/2 电脑广播时只播关键3项；
+// TODO: 2022/4/2 电脑广播时只播关键3项，但手机接收时会另外包含address和nickName数据在里面；
 //  首次连接时手机发送本机UUID等等所有本机数据，电脑先发回来一个收到，等电脑用户确认后发除IP外的所有项；
 //  后续连接时则仅互发shakeMark；连接后直接发各种指令，对对方的身份有怀疑时再请求发送shakeMark确认身份；
 
@@ -106,6 +106,16 @@ public class ComputerInfo {
     public boolean waitingForConfirm() {
         return isConnected && !isSaved &&
                 shakeMark != null && shakeMark.isEmpty();
+    }
+
+    /**
+     * 克隆指定目标对象的配置信息部分的数据
+     */
+    public void cloneConfig(ComputerInfo srcInfo) {
+        this.nickName = srcInfo.nickName;
+        this.shakeMark = srcInfo.shakeMark;
+        this.clientVersion = srcInfo.clientVersion;
+        this.isChecked = srcInfo.isChecked;
     }
 
     @Override

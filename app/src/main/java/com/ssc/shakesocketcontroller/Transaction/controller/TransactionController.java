@@ -33,10 +33,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-// TODO: 2022/3/24 MsgAdapter每收到一次BCEvent就应该缓存起来，这时应后历史列表对比，复用其元素，
-//  最后收到EndBCEvent再整体处理，然后通知列表Adapter更新并停止刷新UI；
-//  MsgAdapter需要根据Ctrl状态判断是否处理数据（包括广播和历史）;
-//  以及考虑中止后还是收到“处理”指令（即全空广播数据的处理）；
+import androidx.annotation.NonNull;
 
 // TODO: 2022/3/17 正常UDP通讯端看看发送和接收是否需要分开Socket，双方均需常驻，特别是接收方；
 //  接收方：持续接收数据，接收后交由MsgAdapter处理，而发送指令后回复超时则在外部使用定时任务来实现，
@@ -64,7 +61,7 @@ public final class TransactionController {
     private static final TransactionController controllerInstance = new TransactionController();
 
     private boolean stopped = true;                         //启动状态
-    private boolean ctrlON = false;                         //控制（Ctrl）状态
+    private volatile boolean ctrlON = false;                //控制（Ctrl）状态
     private int lastDestinationID = -1;                     //最后一个导航目的地ID
 
     private final List<ComputerInfo> onlineDeviceList;
@@ -158,6 +155,19 @@ public final class TransactionController {
     }
 
     /**
+     * 替换新设备列表（在线/历史）
+     */
+    public void setNewDevices(List<ComputerInfo> newList, boolean isOnline) {
+        if (isOnline) {
+            onlineDeviceList.clear();
+            onlineDeviceList.addAll(newList);
+        } else {
+            historyDeviceList.clear();
+            historyDeviceList.addAll(newList);
+        }
+    }
+
+    /**
      * 获取控制器的关闭/启动状态
      */
     public boolean isStopped() {
@@ -225,9 +235,55 @@ public final class TransactionController {
             Log.e(TAG, "reload: udpSender create() failed", e);
         }
         EventBus.getDefault().register(this);
-        msgAdapter.start();
+        //msgAdapter.start();
         stopped = false;
     }
+
+    /**
+     * 从在线列表和历史列表中检索是否已存在指定的设备连接信息，并视情况决定返回哪一个对象
+     *
+     * @return 如果已存在则视情况合并信息然后返回对应的对象，否则返回参数原对象
+     */
+    //该方法用于广播监听
+    public ComputerInfo filterInfoFromCurDevices(final ComputerInfo info) {
+        // TODO: 2022/4/3 历史读取那边要设置isSave，广播这边记得设置isOnline
+        ComputerInfo resInfo = info;
+        if (info != null) {
+            if (onlineDeviceList.contains(info)) {
+                //已存在于在线列表，使用列表值，但需复制IP
+                resInfo = onlineDeviceList.get(onlineDeviceList.indexOf(info));
+                resInfo.address = info.address;
+            } else if (historyDeviceList.contains(info)) {
+                //仅存在于历史列表，使用列表值，但需复制IP
+                resInfo = historyDeviceList.get(historyDeviceList.indexOf(info));
+                resInfo.address = info.address;
+            } else if (!MyApplication.getController().getCurrentConfig().ignoredSameHistory) {
+                ComputerInfo sameHistory = lastInfoSameInHistory(info);
+                if (sameHistory != null) {
+                    //仅存在于历史列表中，但信息已发生变化，使用新值，但需复制设置
+                    resInfo.cloneConfig(sameHistory);
+                }
+            }
+        }
+        return resInfo;
+    }
+
+    /**
+     * 获取历史设备列表中最后一个与指定目标相似的设备信息
+     *
+     * @return 返回最后一个相似对象，如果没有则返回null
+     */
+    public ComputerInfo lastInfoSameInHistory(@NonNull final ComputerInfo info) {
+        ComputerInfo resInfo = null;
+        for (int i = historyDeviceList.size() - 1; i >= 0; i--) {
+            if (historyDeviceList.get(i).isSameDevice(info)) {
+                resInfo = historyDeviceList.get(i);
+                break;
+            }
+        }
+        return resInfo;
+    }
+
 
     public void StartBroadcastListener() {
         try {
@@ -275,9 +331,6 @@ public final class TransactionController {
      * 执行一次广播监听，监听将持续一段时间然后自动结束
      */
     public void observeBCOnce() {
-        // TODO: 2022/4/1 MsgAdapter在收到空广播之后、广播完成之前，
-        //  如果有历史读取完成事件发生，应当优先保证执行历史读取行为（事实上任何时候广播都应该等历史）
-        // TODO: 2022/4/1 在AppConfig加个是否自动刷新的配置选项
         //如果正在监听则忽略本次调用
         if (!bcListener.isListening()) {
             //post空广播事件，通知准备开始广播监听
@@ -336,7 +389,7 @@ public final class TransactionController {
             onlineDeviceList.clear();
             onlineDeviceList.addAll(newList);
             //post刷新完成事件
-            EventBus.getDefault().postSticky(new EndRefreshEvent(onlineDeviceList.size(), true));
+            EventBus.getDefault().postSticky(new EndRefreshEvent(onlineDeviceList.size(), true, true));
             Log.i(TAG, "onEndBroadcastEvent: after post EndRefreshEvent");
         }
     }
@@ -346,7 +399,7 @@ public final class TransactionController {
         //测试方法，该方法应该出现在MsgAdapter里
         Log.i(TAG, "onEndReadHistoryEvent: " + event.getHistoryList().size());
         //post刷新完成事件
-        EventBus.getDefault().postSticky(new EndRefreshEvent(historyDeviceList.size(), false));
+        EventBus.getDefault().postSticky(new EndRefreshEvent(historyDeviceList.size(), false, false));
         Log.i(TAG, "onEndReadHistoryEvent: after post EndRefreshEvent");
     }
 
