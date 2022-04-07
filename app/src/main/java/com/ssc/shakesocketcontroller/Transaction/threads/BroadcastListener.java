@@ -61,6 +61,8 @@ public class BroadcastListener {
     private void beginListen() {
         //async exec
         executor.execute(() -> {
+            Throwable unexpectedEx = null;    //get the unexpected shutdown
+
             try {
                 //create socket
                 bcSocket = new DatagramSocket(port);
@@ -81,9 +83,10 @@ public class BroadcastListener {
                 Log.d(TAG, "beginListen: Socket closed", e);
                 listening = false;
                 return;
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 //unexpected shutdown
                 Log.e(TAG, "beginListen: Socket exception", e);
+                unexpectedEx = e;
             }
 
             //because it is not actively stopped, it needs to be closed manually
@@ -92,18 +95,17 @@ public class BroadcastListener {
             stop(false);
             //then notify to stop the refresh
             stop(true);
-            // TODO: 2022/4/4 上面接住Exception（或生成），然后这里再次抛出该异常，以便对外告知广播监听异常终止
+            //throw the notice
+            throw new RuntimeException("Listening terminated abnormally!", unexpectedEx);
         });
     }
 
     /**
      * 开始监听
-     *
-     * @throws Exception 如果监听器已关闭
      */
-    public void start() throws Exception {
+    public void start() {
         if (closed) {
-            throw new Exception(TAG + " has been closed!");
+            throw new RuntimeException(TAG + " has been closed!");
         }
         if (listening) {
             return;

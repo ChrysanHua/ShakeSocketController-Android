@@ -286,11 +286,7 @@ public final class TransactionController {
 
 
     public void StartBroadcastListener() {
-        try {
-            bcListener.start();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        bcListener.start();
     }
 
     public void StopBroadcastListener() {
@@ -336,11 +332,7 @@ public final class TransactionController {
             //post空广播事件，通知准备开始广播监听
             EventBus.getDefault().post(new BroadcastEvent(null));
             //开始监听
-            try {
-                bcListener.start();
-            } catch (Exception e) {
-                Log.e(TAG, "observeBCOnce: ", e);
-            }
+            bcListener.start();
         }
     }
 
@@ -431,6 +423,7 @@ public final class TransactionController {
     @Subscribe
     public void onThrowableFailureEvent(ThrowableFailureEvent event) {
         Log.e(TAG, "onThrowableFailureEvent: ", event.getThrowable());
+        //Toast "好像出了点问题…"
     }
 
 }

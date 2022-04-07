@@ -17,8 +17,7 @@ public final class ByteUtil {
 
     public static byte[] fixLen(byte[] bytes, int length) {
         byte[] result = new byte[length];
-        System.arraycopy(bytes, 0, result, 0,
-                bytes.length > length ? length : bytes.length);
+        System.arraycopy(bytes, 0, result, 0, Math.min(bytes.length, length));
         return result;
     }
 

@@ -79,7 +79,7 @@ public class MessageAdapter {
             hadDiscardedBC = false;
         } else {
             //解析event里的数据报，将其转换为一个可用的CPInfo对象
-            //先用伪代码实现逻辑↓，反序列化json记得处理异常
+            // TODO: 2022/4/7 先用伪代码实现逻辑↓，反序列化json记得处理异常
             String json = StrUtil.byteToStr(event.getData());
             ComputerInfo bcInfo = gson.fromJson(json, ComputerInfo.class);
             if (bcInfo != null) {
