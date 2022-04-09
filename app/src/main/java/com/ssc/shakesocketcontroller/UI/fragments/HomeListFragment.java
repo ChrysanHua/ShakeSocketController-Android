@@ -206,12 +206,14 @@ public class HomeListFragment extends Fragment {
         EventBus.getDefault().removeStickyEvent(event);
         //只执行与界面类型相匹配的事件；Fragment创建后首次进入界面无需执行实际刷新，因为创建时已匹配最新数据
         if (event.isOnlineRefresh() == curIsOnlineView && !isFirstResume) {
-            //通知Adapter更新
-            notifyDataAllChanged();
+            if (event.isUpdated()) {
+                //通知Adapter更新
+                notifyDataAllChanged();
+                //更新中央提示文字的可见性
+                updateTipsVisibility();
+            }
             //停止刷新进度条
             setSwipeRefreshing(false);
-            //更新中央提示文字的可见性
-            updateTipsVisibility();
             Log.i(TAG, "onEndRefreshEvent: real done");
         }
         Log.i(TAG, "onEndRefreshEvent: finish");

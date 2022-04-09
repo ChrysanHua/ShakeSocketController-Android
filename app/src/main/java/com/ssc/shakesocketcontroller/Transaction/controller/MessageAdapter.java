@@ -27,13 +27,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-// TODO: 2022/3/24 MsgAdapter每收到一次BCEvent就应该缓存起来，这时应和历史列表对比，复用其元素，
-//  最后收到EndBCEvent再整体处理，然后通知列表Adapter更新并停止刷新UI；√
-//  MsgAdapter需要根据Ctrl状态判断是否处理数据（包括广播和历史）;
-//  以及考虑中止后还是收到“处理”指令（即全空广播数据的处理）；
-//  MsgAdapter在收到空广播之后、广播完成之前，
-//  如果有历史读取完成事件发生，应当优先保证执行历史读取行为（事实上任何时候广播都应该等历史）；
-
 /**
  * 消息适配器，负责处理UI与后台交互的全局的事件、指令、信号消息等
  */
@@ -44,6 +37,7 @@ public class MessageAdapter {
     private final Gson gson;                            //用于Json字符串转换
 
     private volatile boolean hadDiscardedBC = false;    //指示某轮广播监听是否发生过丢弃
+    private volatile boolean stopped = true;            //启动状态
 
     private HashMap<String, ComputerInfo> targetMap;
     private String curTargetMacStr;
@@ -52,20 +46,39 @@ public class MessageAdapter {
     public MessageAdapter() {
         bcInfoList = new ArrayList<>();
         gson = new GsonBuilder().serializeNulls().create();
-
-        targetMap = new HashMap<>();
     }
 
+    /**
+     * 获取设配器停止/开始状态
+     */
+    public boolean isStopped() {
+        return stopped;
+    }
+
+    /**
+     * 开始消息适配处理
+     */
     public void start() {
+        if (!stopped) {
+            return;
+        }
+
         EventBus.getDefault().register(this);
-        targetMap.clear();
-        curTargetMacStr = null;
+        //设置状态
+        stopped = false;
     }
 
+    /**
+     * 停止消息适配处理
+     */
     public void stop() {
         if (EventBus.getDefault().isRegistered(this)) {
             EventBus.getDefault().unregister(this);
         }
+        //重置状态
+        stopped = true;
+        //清空缓存列表
+        bcInfoList.clear();
     }
 
     /**
@@ -80,13 +93,14 @@ public class MessageAdapter {
         } else {
             //解析event里的数据报，将其转换为一个可用的CPInfo对象
             // TODO: 2022/4/7 先用伪代码实现逻辑↓，反序列化json记得处理异常
+            Log.d(TAG, "onBroadcastEvent: get one BC.");
             String json = StrUtil.byteToStr(event.getData());
             ComputerInfo bcInfo = gson.fromJson(json, ComputerInfo.class);
             if (bcInfo != null) {
                 //设置IP信息
                 bcInfo.address = event.getAddress();
                 //如果设备信息不完整则直接忽略
-                if (bcInfo.isIntact()) {
+                if (!stopped && bcInfo.isIntact()) {
                     if (bcInfoList.contains(bcInfo)) {
                         //如果本轮监听已接收过该设备的广播则直接更新IP即可
                         bcInfoList.get(bcInfoList.indexOf(bcInfo)).address = bcInfo.address;
@@ -108,15 +122,17 @@ public class MessageAdapter {
      */
     @Subscribe(priority = 2)
     public void onEndBroadcastEvent(EndBroadcastEvent event) {
+        Log.i(TAG, "onEndBroadcastEvent: shouldSaveResult? -> " + event.shouldSaveResult());
         //如果已经Ctrl-ON，则不应再去更新在线列表
         if (event.shouldSaveResult() && !MyApplication.getController().isCtrlON()) {
             int oldListCount = MyApplication.getController().getCurrentDevicesCount(true);
-            if (!hadDiscardedBC) {
+            boolean isUpdated = !hadDiscardedBC && !stopped;    //根据丢弃状态判断是否需要执行替换操作
+            if (isUpdated) {
                 //本轮监听没有发生过丢弃，替换新的在线列表
                 MyApplication.getController().setNewDevices(bcInfoList, true);
             }
             //post刷新完成事件
-            EventBus.getDefault().postSticky(new EndRefreshEvent(oldListCount, true, !hadDiscardedBC));
+            EventBus.getDefault().postSticky(new EndRefreshEvent(oldListCount, true, isUpdated));
             Log.i(TAG, "onEndBroadcastEvent: after post EndRefreshEvent");
         } else {
             //丢弃已缓存的广播设备信息，并标志状态
@@ -125,9 +141,32 @@ public class MessageAdapter {
         }
     }
 
-    @Subscribe()
+    @Subscribe(priority = 4)
     public void onEndReadHistoryEvent(EndReadHistoryEvent event) {
-        //要考虑读取历史与广播监听之间的冲突，以及Ctrl-ON的问题等等
+        Log.i(TAG, "onEndReadHistoryEvent: List Size -> " + event.getHistoryList().size());
+        //如果已经Ctrl-ON，则不应再去更新历史列表
+        if (!MyApplication.getController().isCtrlON()) {
+            boolean isUpdated = false;
+            int oldListCount = MyApplication.getController().getCurrentDevicesCount(false);
+
+            //如果历史记录没有变化则无须执行替换操作
+            if (oldListCount != event.getHistoryList().size() || !event.getHistoryList().equals(
+                    MyApplication.getController().getCurrentDevices(false))) {
+                //合并新旧历史记录
+                List<ComputerInfo> newHistoryList = MyApplication.getController()
+                        .mergeHistoryDevices(event.getHistoryList());
+                //二次检查
+                if (!MyApplication.getController().isCtrlON() && !stopped) {
+                    //替换新的历史连接列表，并标志状态
+                    MyApplication.getController().setNewDevices(newHistoryList, false);
+                    isUpdated = true;
+                }
+            }
+
+            //post刷新完成事件
+            EventBus.getDefault().postSticky(new EndRefreshEvent(oldListCount, false, isUpdated));
+            Log.i(TAG, "onEndReadHistoryEvent: after post EndRefreshEvent");
+        }
     }
 
     //伪方法
