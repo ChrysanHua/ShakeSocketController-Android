@@ -5,25 +5,16 @@ import android.util.Log;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.ssc.shakesocketcontroller.Models.events.signal.BroadcastEvent;
 import com.ssc.shakesocketcontroller.Models.events.signal.EndRefreshEvent;
-import com.ssc.shakesocketcontroller.Models.events.signal.SendUDPEvent;
 import com.ssc.shakesocketcontroller.Models.pojo.AppConfig;
 import com.ssc.shakesocketcontroller.Models.pojo.ComputerInfo;
 import com.ssc.shakesocketcontroller.Transaction.threads.BroadcastListener;
 import com.ssc.shakesocketcontroller.Transaction.threads.HistoryWorker;
-import com.ssc.shakesocketcontroller.Transaction.threads.TCPConnectThread;
-import com.ssc.shakesocketcontroller.Transaction.threads.TCPHandlerThread;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.SubscriberExceptionEvent;
-import org.greenrobot.eventbus.ThreadMode;
 import org.greenrobot.eventbus.util.ThrowableFailureEvent;
 
-import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.Socket;
-import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -67,9 +58,9 @@ public final class TransactionController {
     private volatile boolean ctrlON = false;                //控制（Ctrl）状态
     private int lastDestinationID = -1;                     //最后一个导航目的地ID
 
-    private final List<ComputerInfo> onlineDeviceList;
-    private final List<ComputerInfo> historyDeviceList;
-    private final List<ComputerInfo> ctrlDeviceList;
+    private final List<ComputerInfo> onlineDeviceList;      //在线设备连接列表
+    private final List<ComputerInfo> historyDeviceList;     //历史设备连接列表
+    private final List<ComputerInfo> ctrlDeviceList;        //当前要进行SSC控制的设备连接列表
 
     private final MessageAdapter msgAdapter;                //消息设配器
     private ScheduledExecutorService scheduledExecutor;     //异步延时任务执行器
@@ -77,11 +68,10 @@ public final class TransactionController {
     private HistoryWorker historyWorker;                    //历史连接信息记录器
     private AppConfig config;                               //APP配置
 
-    private TCPConnectThread tcpListener;
-    private TCPHandlerThread tcpHandler;
-    private DatagramSocket udpSender;
 
-
+    /**
+     * @return 返回单例对象
+     */
     static TransactionController getInstance() {
         return controllerInstance;
     }
@@ -239,12 +229,7 @@ public final class TransactionController {
 
     protected void reload() {
         stop();
-        try {
-            udpSender = new DatagramSocket();
-        } catch (SocketException e) {
-            udpSender = null;
-            Log.e(TAG, "reload: udpSender create() failed", e);
-        }
+
         EventBus.getDefault().register(this);
         stopped = false;
     }
@@ -256,7 +241,6 @@ public final class TransactionController {
      */
     //该方法用于广播监听
     public ComputerInfo filterInfoFromCurDevices(final ComputerInfo info) {
-        // TODO: 2022/4/3 历史读取那边要设置isSave，广播这边记得设置isOnline
         ComputerInfo resInfo = info;
         if (info != null) {
             if (onlineDeviceList.contains(info)) {
@@ -312,45 +296,6 @@ public final class TransactionController {
         return resList;
     }
 
-
-    public void StartBroadcastListener() {
-        bcListener.start();
-    }
-
-    public void StopBroadcastListener() {
-        bcListener.stop(false);
-    }
-
-    public void StartTCPListener() {
-        if (tcpListener == null) {
-            tcpListener = new TCPConnectThread(TCP_PORT);
-        }
-        tcpListener.start();
-    }
-
-    public void StopTCPListener() {
-        if (tcpListener == null)
-            return;
-        tcpListener.cancel();
-        tcpListener = null;
-    }
-
-    public void StartTCPHandler(Socket client) {
-        if (tcpHandler != null) {
-            //only allow one TCPHandler exist
-            StopTCPHandler();
-        }
-        tcpHandler = new TCPHandlerThread(client);
-        tcpHandler.start();
-    }
-
-    public void StopTCPHandler() {
-        if (tcpHandler == null)
-            return;
-        tcpHandler.cancel();
-        tcpHandler = null;
-    }
-
     /**
      * 执行一次广播监听，监听将持续一段时间然后自动结束
      */
@@ -403,21 +348,6 @@ public final class TransactionController {
         return schedule(command, millisecondDelay, TimeUnit.MILLISECONDS);
     }
 
-
-    @Subscribe(threadMode = ThreadMode.ASYNC)
-    public void onSendUDPEvent(SendUDPEvent event) {
-        if (udpSender == null)
-            return;
-        try {
-            DatagramPacket packet = new DatagramPacket(event.getMsgData(),
-                    event.getMsgData().length, event.getAddress(), MSG_PORT);
-            udpSender.send(packet);
-            Log.d(TAG, "onSendUDPEvent: send packet success");
-        } catch (IOException e) {
-            Log.e(TAG, "onSendUDPEvent: udpSender send() failed", e);
-        }
-    }
-
     /**
      * 全局Event（EventBus）执行异常事件
      */
@@ -434,5 +364,19 @@ public final class TransactionController {
         Log.e(TAG, "onThrowableFailureEvent: ", event.getThrowable());
         //Toast "好像出了点问题…"
     }
+
+    //@Subscribe(threadMode = ThreadMode.ASYNC)
+    //public void onSendUDPEvent(SendUDPEvent event) {
+    //    if (udpSender == null)
+    //        return;
+    //    try {
+    //        DatagramPacket packet = new DatagramPacket(event.getMsgData(),
+    //                event.getMsgData().length, event.getAddress(), MSG_PORT);
+    //        udpSender.send(packet);
+    //        Log.d(TAG, "onSendUDPEvent: send packet success");
+    //    } catch (IOException e) {
+    //        Log.e(TAG, "onSendUDPEvent: udpSender send() failed", e);
+    //    }
+    //}
 
 }

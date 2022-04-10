@@ -12,9 +12,6 @@ import com.ssc.shakesocketcontroller.Models.events.signal.EndBroadcastEvent;
 import com.ssc.shakesocketcontroller.Models.events.signal.EndReadHistoryEvent;
 import com.ssc.shakesocketcontroller.Models.events.signal.EndRefreshEvent;
 import com.ssc.shakesocketcontroller.Models.events.signal.LaunchConnectEvent;
-import com.ssc.shakesocketcontroller.Models.events.signal.SendTCPEvent;
-import com.ssc.shakesocketcontroller.Models.events.signal.TCPConnectedEvent;
-import com.ssc.shakesocketcontroller.Models.events.signal.TCPReceiveEvent;
 import com.ssc.shakesocketcontroller.Models.pojo.ComputerInfo;
 import com.ssc.shakesocketcontroller.Models.pojo.MsgPacket;
 import com.ssc.shakesocketcontroller.Utils.StrUtil;
@@ -22,9 +19,7 @@ import com.ssc.shakesocketcontroller.Utils.StrUtil;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -38,9 +33,6 @@ public class MessageAdapter {
 
     private volatile boolean hadDiscardedBC = false;    //指示某轮广播监听是否发生过丢弃
     private volatile boolean stopped = true;            //启动状态
-
-    private HashMap<String, ComputerInfo> targetMap;
-    private String curTargetMacStr;
 
 
     public MessageAdapter() {
@@ -201,40 +193,40 @@ public class MessageAdapter {
 
     @Subscribe
     public void onLaunchConnectEvent(LaunchConnectEvent event) {
-        if (targetMap.containsKey(event.getTargetMacStr())) {
-            curTargetMacStr = event.getTargetMacStr();
-            //start TCPListener to wait for connecting
-            //controller.StartTCPListener();
-            //stop BroadcastListener
-            //controller.StopBroadcastListener();
-            //send UDP localInfo packet to target
-            //MsgPacket packet = new MsgPacket.Builder(MsgPacket.TYPE_GUN)
-            //        .dataStr(gson.toJson(config.getLocalInfo())).build();
-            //packet.setTargetInfo(targetMap.get(curTargetMacStr));
-            //EventBus.getDefault().post(new SendUDPEvent(packet));
-        }
+        //if (targetMap.containsKey(event.getTargetMacStr())) {
+        //    curTargetMacStr = event.getTargetMacStr();
+        //    //start TCPListener to wait for connecting
+        //    controller.StartTCPListener();
+        //    //stop BroadcastListener
+        //    controller.StopBroadcastListener();
+        //    //send UDP localInfo packet to target
+        //    MsgPacket packet = new MsgPacket.Builder(MsgPacket.TYPE_GUN)
+        //            .dataStr(gson.toJson(config.getLocalInfo())).build();
+        //    packet.setTargetInfo(targetMap.get(curTargetMacStr));
+        //    EventBus.getDefault().post(new SendUDPEvent(packet));
+        //}
     }
 
     @Subscribe
     public void onConnectConfirmEvent(ConnectConfirmEvent event) {
         //check legality
-        if (curTargetMacStr.equals(event.getTargetMacStr())) {
-            //stop BroadcastListener
-            //controller.StopBroadcastListener();
-            //stop TCPListener(OPT)
-            //controller.StopTCPListener();
-            //start TCPHandler
-            //controller.StartTCPHandler(event.getClient());
-            //notify UI that connect successfully connect
-            EventBus.getDefault().post(new TCPConnectedEvent(targetMap.get(curTargetMacStr)));
-        } else {
-            try {
-                event.getClient().close();
-                Log.i(TAG, "onConnectConfirmEvent: illegal connection close() success");
-            } catch (IOException e) {
-                Log.d(TAG, "onConnectConfirmEvent: illegal connection close() failed");
-            }
-        }
+        //if (curTargetMacStr.equals(event.getTargetMacStr())) {
+        //    //stop BroadcastListener
+        //    controller.StopBroadcastListener();
+        //    //stop TCPListener(OPT)
+        //    controller.StopTCPListener();
+        //    //start TCPHandler
+        //    controller.StartTCPHandler(event.getClient());
+        //    //notify UI that connect successfully connect
+        //    EventBus.getDefault().post(new TCPConnectedEvent(targetMap.get(curTargetMacStr)));
+        //} else {
+        //    try {
+        //        event.getClient().close();
+        //        Log.i(TAG, "onConnectConfirmEvent: illegal connection close() success");
+        //    } catch (IOException e) {
+        //        Log.d(TAG, "onConnectConfirmEvent: illegal connection close() failed");
+        //    }
+        //}
     }
 
     @Subscribe
@@ -242,7 +234,7 @@ public class MessageAdapter {
         try {
             MsgPacket cmdPacket = new MsgPacket.Builder(MsgPacket.TYPE_CMD)
                     .dataStr(gson.toJson(event)).build();
-            EventBus.getDefault().post(new SendTCPEvent(cmdPacket));
+            //EventBus.getDefault().post(new SendTCPEvent(cmdPacket));
         } catch (Exception e) {
             Log.e(TAG, "onCmdEvent: " + event.getCmdType() + " cmd control failed"
                     , e);
@@ -250,6 +242,7 @@ public class MessageAdapter {
         }
     }
 
+    /* 收到设备发过来的信息
     @Subscribe
     public void onTCPReceiveEvent(TCPReceiveEvent event) {
         try {
@@ -262,6 +255,6 @@ public class MessageAdapter {
         } catch (Exception e) {
             Log.e(TAG, "onTCPReceiveEvent: TCPReceive analyze failed", e);
         }
-    }
+    }*/
 
 }

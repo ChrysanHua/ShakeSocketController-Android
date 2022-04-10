@@ -10,6 +10,10 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 
+/**
+ * @deprecated 已弃用以TCP方式进行通讯
+ */
+@Deprecated
 public class TCPConnectThread extends Thread {
     private static final String TAG = "TCPConnectThread";
 

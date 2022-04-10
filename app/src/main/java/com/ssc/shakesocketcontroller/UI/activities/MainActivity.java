@@ -1,6 +1,5 @@
 package com.ssc.shakesocketcontroller.UI.activities;
 
-import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
@@ -12,10 +11,7 @@ import android.widget.TextView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.snackbar.Snackbar;
-import com.ssc.shakesocketcontroller.FunctionActivity;
 import com.ssc.shakesocketcontroller.Models.events.signal.CtrlStateChangedEvent;
-import com.ssc.shakesocketcontroller.Models.events.signal.TCPConnectedEvent;
-import com.ssc.shakesocketcontroller.Models.events.signal.TCPDisConnectEvent;
 import com.ssc.shakesocketcontroller.R;
 import com.ssc.shakesocketcontroller.Transaction.controller.MyApplication;
 import com.ssc.shakesocketcontroller.Transaction.controller.TransactionController;
@@ -23,8 +19,6 @@ import com.ssc.shakesocketcontroller.Utils.DeviceUtil;
 import com.ssc.shakesocketcontroller.Utils.StrUtil;
 
 import org.greenrobot.eventbus.EventBus;
-import org.greenrobot.eventbus.Subscribe;
-import org.greenrobot.eventbus.ThreadMode;
 
 import java.lang.ref.WeakReference;
 import java.util.Objects;
@@ -329,24 +323,11 @@ public class MainActivity extends AppCompatActivity {
             holder.ctrlCount.setText(null);
             holder.ctrlState.setText(R.string.tip_nav_ctrl_off);
         }
+        ////无用代码，开发阶段保留作参考
         //fab.setBackgroundTintList(ResourcesCompat.getColorStateList(
         //        getResources(),
         //        enabled ? R.color.fabON : R.color.fabOFF,
         //        getTheme()));
     }
 
-    @Subscribe(threadMode = ThreadMode.MAIN)
-    public void onTCPConnectedEvent(TCPConnectedEvent event) {
-        //computerInfoAdapter.notifyConnected(event.getTargetInfo());
-        //start functionActivity
-        Intent intent = new Intent(this, FunctionActivity.class);
-        startActivity(intent);
-    }
-
-    @Subscribe(threadMode = ThreadMode.MAIN)
-    public void onTCPDisConnectEvent(TCPDisConnectEvent event) {
-        if (!event.isSendFailed()) {
-            //computerInfoAdapter.notifyDisConnect();
-        }
-    }
 }

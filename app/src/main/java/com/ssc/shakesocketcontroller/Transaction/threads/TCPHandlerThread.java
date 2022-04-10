@@ -15,6 +15,10 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 
+/**
+ * @deprecated 已弃用以TCP方式进行通讯
+ */
+@Deprecated
 public class TCPHandlerThread extends Thread {
     private static final String TAG = "TCPHandlerThread";
 
