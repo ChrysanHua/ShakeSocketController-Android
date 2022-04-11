@@ -77,10 +77,11 @@ public class BroadcastListener {
                     //post BroadcastEvent
                     EventBus.getDefault().post(new BroadcastEvent(packet));
                 }
-                Log.i(TAG, "beginListen: Socket reception stopped unexpectedly");
+                Log.w(TAG, "beginListen: Socket reception stopped unexpectedly");
             } catch (SocketException e) {
                 //expected closure, modify state
-                Log.d(TAG, "beginListen: Socket closed", e);
+                //Log.d(TAG, "beginListen: Socket closed", e);
+                Log.i(TAG, "beginListen: Socket closed.");
                 listening = false;
                 return;
             } catch (Throwable e) {
@@ -118,7 +119,7 @@ public class BroadcastListener {
             //stop after the duration
             saveFuture = MyApplication.getController().schedule(() -> stop(true), duration);
         }
-        Log.d(TAG, "start: Socket listening with port: " + port);
+        Log.i(TAG, "start: Socket starts listening with port: " + port);
     }
 
     /**

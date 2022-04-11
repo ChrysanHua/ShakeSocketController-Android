@@ -69,7 +69,6 @@ public class MainActivity extends AppCompatActivity {
 
 
     // TODO: 2022/3/13 实现前台服务功能，建议发送和接收分开Socket，然后一起常驻在前台服务当中
-    // TODO: 2022/3/9 Controller里的on/off状态和start/stop状态分开
     // TODO: 2022/3/9 考虑已发现设备的心跳问题：
     //                  已连接：等到发具体指令的时候再判断是否已断开；
     //                  未连接：在每次下拉刷新监听广播的时候整体替换为新列表；
@@ -77,10 +76,16 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        Log.i(TAG, "before super onCreate: for HomeListFragment");
+        Log.d(TAG, "before super onCreate: for HomeListFragment");
         super.onCreate(savedInstanceState);
-        Log.i(TAG, "after super onCreate: for HomeListFragment");
+        Log.d(TAG, "after super onCreate: for HomeListFragment");
+
+        //重启controller（如果需要）
+        if (controller.isStopped()) {
+            controller.reload();
+        }
         setContentView(R.layout.activity_main);
+
         //标题栏
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -126,7 +131,7 @@ public class MainActivity extends AppCompatActivity {
             public void onDestinationChanged(@NonNull NavController navController,
                                              @NonNull NavDestination destination,
                                              @Nullable Bundle arguments) {
-                Log.i(TAG, "onDestinationChanged: " + destination.getLabel());
+                Log.d(TAG, "onDestinationChanged: " + destination.getLabel());
                 //通过弱引用获取导航图
                 NavigationView navView = weakRefNavView.get();
                 if (navView == null) {
@@ -161,55 +166,51 @@ public class MainActivity extends AppCompatActivity {
 
         //进入Activity先根据Ctrl状态更新UI
         setUIState(controller.isCtrlON());
-        Log.i(TAG, "finish onCreate: for HomeListFragment");
+        Log.d(TAG, "finish onCreate: for HomeListFragment");
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-        EventBus.getDefault().register(this);
-        if (!EventBus.getDefault().isRegistered(controller)) {
-            //临时
-            EventBus.getDefault().register(controller);
-        }
         //进入界面时如果已经处于上次退出时的界面（即未显式导航就已经在目的地），则需要重置为初始状态
         if (controller.isCtrlON() &&
                 Objects.requireNonNull(mNavController.getCurrentDestination()).getId()
                         == controller.getLastDestinationID()) {
             controller.setLastDestinationID(-1);
         }
-        Log.i(TAG, "onStart: ");
+        Log.d(TAG, "onStart: ");
     }
 
     @Override
     protected void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
-        Log.e(TAG, "onSaveInstanceState: ");
+        Log.d(TAG, "onSaveInstanceState: ");
     }
 
     @Override
     protected void onRestoreInstanceState(@NonNull Bundle savedInstanceState) {
         super.onRestoreInstanceState(savedInstanceState);
-        Log.e(TAG, "onRestoreInstanceState: ");
+        Log.d(TAG, "onRestoreInstanceState: ");
     }
 
     @Override
     protected void onStop() {
-        EventBus.getDefault().unregister(this);
         super.onStop();
         //退出界面时才真正保存目的地ID
         if (controller.isCtrlON()) {
             controller.setLastDestinationID(mLastDestinationID);
         }
-        Log.i(TAG, "onStop: ");
+        Log.d(TAG, "onStop: ");
     }
 
     @Override
     protected void onDestroy() {
-        EventBus.getDefault().unregister(controller);
-        //controller.stop();
         super.onDestroy();
-        Log.i(TAG, "onDestroy: ");
+        //如果没有启动控制（Ctrl-OFF），则关闭controller
+        if (!controller.isCtrlON()) {
+            controller.stop();
+        }
+        Log.d(TAG, "onDestroy: ");
     }
 
     /**

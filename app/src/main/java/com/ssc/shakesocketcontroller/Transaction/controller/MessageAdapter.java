@@ -41,7 +41,7 @@ public class MessageAdapter {
     }
 
     /**
-     * 获取设配器停止/开始状态
+     * 获取适配器停止/开始状态
      */
     public boolean isStopped() {
         return stopped;
@@ -58,6 +58,7 @@ public class MessageAdapter {
         EventBus.getDefault().register(this);
         //设置状态
         stopped = false;
+        Log.i(TAG, "start: Adapter started.");
     }
 
     /**
@@ -71,6 +72,7 @@ public class MessageAdapter {
         stopped = true;
         //清空缓存列表
         bcInfoList.clear();
+        Log.i(TAG, "stop: Adapter stopped.");
     }
 
     /**
@@ -114,7 +116,7 @@ public class MessageAdapter {
      */
     @Subscribe(priority = 2)
     public void onEndBroadcastEvent(EndBroadcastEvent event) {
-        Log.i(TAG, "onEndBroadcastEvent: shouldSaveResult? -> " + event.shouldSaveResult());
+        Log.d(TAG, "onEndBroadcastEvent: shouldSaveResult? -> " + event.shouldSaveResult());
         //如果已经Ctrl-ON，则不应再去更新在线列表
         if (event.shouldSaveResult() && !MyApplication.getController().isCtrlON()) {
             int oldListCount = MyApplication.getController().getCurrentDevicesCount(true);
@@ -122,10 +124,11 @@ public class MessageAdapter {
             if (isUpdated) {
                 //本轮监听没有发生过丢弃，替换新的在线列表
                 MyApplication.getController().setNewDevices(bcInfoList, true);
+                Log.d(TAG, "onEndBroadcastEvent: Replaced list");
             }
             //post刷新完成事件
             EventBus.getDefault().postSticky(new EndRefreshEvent(oldListCount, true, isUpdated));
-            Log.i(TAG, "onEndBroadcastEvent: after post EndRefreshEvent");
+            Log.d(TAG, "onEndBroadcastEvent: after post EndRefreshEvent");
         } else {
             //丢弃已缓存的广播设备信息，并标志状态
             bcInfoList.clear();
@@ -135,7 +138,7 @@ public class MessageAdapter {
 
     @Subscribe(priority = 4)
     public void onEndReadHistoryEvent(EndReadHistoryEvent event) {
-        Log.i(TAG, "onEndReadHistoryEvent: List Size -> " + event.getHistoryList().size());
+        Log.d(TAG, "onEndReadHistoryEvent: List Size -> " + event.getHistoryList().size());
         //如果已经Ctrl-ON，则不应再去更新历史列表
         if (!MyApplication.getController().isCtrlON()) {
             boolean isUpdated = false;
@@ -152,12 +155,13 @@ public class MessageAdapter {
                     //替换新的历史连接列表，并标志状态
                     MyApplication.getController().setNewDevices(newHistoryList, false);
                     isUpdated = true;
+                    Log.d(TAG, "onEndReadHistoryEvent: Replaced list");
                 }
             }
 
             //post刷新完成事件
             EventBus.getDefault().postSticky(new EndRefreshEvent(oldListCount, false, isUpdated));
-            Log.i(TAG, "onEndReadHistoryEvent: after post EndRefreshEvent");
+            Log.d(TAG, "onEndReadHistoryEvent: after post EndRefreshEvent");
         }
     }
 

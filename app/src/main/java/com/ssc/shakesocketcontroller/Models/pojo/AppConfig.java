@@ -40,9 +40,10 @@ public class AppConfig {
 
 
     /**
-     * 私有构造函数，每次从Json反序列化时都会被调用
+     * <h3>注意：不要直接使用此构造函数，使用load()方法加载配置！</h3>
+     * 初始化带默认值的APP设置，每次从Json反序列化时都会被调用
      */
-    private AppConfig() {
+    public AppConfig() {
         //在此设定默认值
         this.uuid = DeviceUtil.generateUUID();
         this.deviceName = DeviceUtil.getDeviceName();
@@ -89,7 +90,7 @@ public class AppConfig {
             config = new AppConfig();
             //将默认设置保存到本地
             save(config);
-            Log.i(TAG, "load: init AppConfig.");
+            Log.i(TAG, "load: Init AppConfig.");
         }
 
         return config;

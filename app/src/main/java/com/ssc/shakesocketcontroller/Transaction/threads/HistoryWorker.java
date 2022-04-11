@@ -60,6 +60,7 @@ public class HistoryWorker {
         try {
             //从XML中读取Json字符串
             final String json = preferences.getString(HISTORY_DATA_KEY, "");
+            Log.i(TAG, "read: Load the historical data.");
             //反序列化Json字符串
             infoList = gson.fromJson(json, listType);
         } catch (Exception e) {
@@ -104,6 +105,7 @@ public class HistoryWorker {
         final String json = (list == null ? "" : gson.toJson(list));
         //将Json字符串写入XML
         preferences.edit().putString(HISTORY_DATA_KEY, json).apply();
+        Log.i(TAG, "write: Save the historical data.");
     }
 
 }

@@ -41,7 +41,7 @@ public class HomeListFragment extends Fragment {
         //获取当前处于哪种界面
         curIsOnlineView = getArguments() == null || getArguments().getBoolean(
                 MyApplication.appContext.getString(R.string.arg_name_online_flag), true);
-        Log.i(TAG, "onCreate: curIsOnlineView? -> " + curIsOnlineView);
+        Log.d(TAG, "onCreate: curIsOnlineView? -> " + curIsOnlineView);
     }
 
     @Nullable
@@ -49,7 +49,7 @@ public class HomeListFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater,
                              @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
-        Log.i(TAG, "onCreateView: curIsOnlineView? -> " + curIsOnlineView);
+        Log.d(TAG, "onCreateView: curIsOnlineView? -> " + curIsOnlineView);
         //初始化FirstResume状态
         isFirstResume = true;
         return inflater.inflate(R.layout.fragment_home_list, container, false);
@@ -76,7 +76,7 @@ public class HomeListFragment extends Fragment {
                 MyApplication.getController().setLastDestinationID(-1);
             }
         }
-        Log.i(TAG, "onViewCreated: curIsOnlineView? -> " + curIsOnlineView);
+        Log.d(TAG, "onViewCreated: curIsOnlineView? -> " + curIsOnlineView);
     }
 
     @Override
@@ -93,7 +93,7 @@ public class HomeListFragment extends Fragment {
         recyclerView.setAdapter(new OnlyCPInfoAdapter(curIsOnlineView));
         //更新中央提示文字的可见性
         updateTipsVisibility();
-        Log.i(TAG, "onActivityCreated: curIsOnlineView? -> " + curIsOnlineView);
+        Log.d(TAG, "onActivityCreated: curIsOnlineView? -> " + curIsOnlineView);
     }
 
     @Override
@@ -105,13 +105,13 @@ public class HomeListFragment extends Fragment {
         if (event != null) {
             onEndRefreshEvent(event);
         }
-        Log.i(TAG, "onStart: curIsOnlineView? -> " + curIsOnlineView);
+        Log.d(TAG, "onStart: curIsOnlineView? -> " + curIsOnlineView);
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        Log.i(TAG, "onResume: curIsOnlineView? -> " + curIsOnlineView);
+        Log.d(TAG, "onResume: curIsOnlineView? -> " + curIsOnlineView);
         //仅在创建Fragment后首次进入界面时进行自动刷新（从抽屉菜单打开时，每次都会重新创建）
         if (isFirstResume) {
             //重置FirstResume状态
@@ -129,26 +129,26 @@ public class HomeListFragment extends Fragment {
     @Override
     public void onPause() {
         super.onPause();
-        Log.i(TAG, "onPause: curIsOnlineView? -> " + curIsOnlineView);
+        Log.d(TAG, "onPause: curIsOnlineView? -> " + curIsOnlineView);
     }
 
     @Override
     public void onStop() {
         EventBus.getDefault().unregister(this);
         super.onStop();
-        Log.i(TAG, "onStop: curIsOnlineView? -> " + curIsOnlineView);
+        Log.d(TAG, "onStop: curIsOnlineView? -> " + curIsOnlineView);
     }
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        Log.i(TAG, "onDestroyView: curIsOnlineView? -> " + curIsOnlineView);
+        Log.d(TAG, "onDestroyView: curIsOnlineView? -> " + curIsOnlineView);
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
-        Log.i(TAG, "onDestroy: curIsOnlineView? -> " + curIsOnlineView);
+        Log.d(TAG, "onDestroy: curIsOnlineView? -> " + curIsOnlineView);
     }
 
     /**
@@ -214,9 +214,9 @@ public class HomeListFragment extends Fragment {
             }
             //停止刷新进度条
             setSwipeRefreshing(false);
-            Log.i(TAG, "onEndRefreshEvent: real done");
+            Log.d(TAG, "onEndRefreshEvent: real done");
         }
-        Log.i(TAG, "onEndRefreshEvent: finish");
+        Log.d(TAG, "onEndRefreshEvent: finish");
     }
 
     /**

@@ -24,7 +24,6 @@ import java.util.concurrent.TimeUnit;
 
 import androidx.annotation.NonNull;
 
-// TODO: 2022/4/9 进入APP时应当先读取一次历史记录，直接用read()读取。
 // TODO: 2022/4/9 写个假广播post测试方法，用来测试广播监听和历史读取的相关逻辑。
 
 // TODO: 2022/4/8 考虑主列表有没有必要换为线程安全的Vector，检查主列表的使用情况，同一时间是否只会有单个线程进行写操作？
@@ -54,7 +53,7 @@ public final class TransactionController {
      */
     private static final TransactionController controllerInstance = new TransactionController();
 
-    private boolean stopped = true;                         //启动状态
+    private volatile boolean stopped = true;                //启动状态
     private volatile boolean ctrlON = false;                //控制（Ctrl）状态
     private int lastDestinationID = -1;                     //最后一个导航目的地ID
 
@@ -62,7 +61,7 @@ public final class TransactionController {
     private final List<ComputerInfo> historyDeviceList;     //历史设备连接列表
     private final List<ComputerInfo> ctrlDeviceList;        //当前要进行SSC控制的设备连接列表
 
-    private final MessageAdapter msgAdapter;                //消息设配器
+    private final MessageAdapter msgAdapter;                //消息适配器
     private ScheduledExecutorService scheduledExecutor;     //异步延时任务执行器
     private BroadcastListener bcListener;                   //广播监听器
     private HistoryWorker historyWorker;                    //历史连接信息记录器
@@ -77,22 +76,15 @@ public final class TransactionController {
     }
 
     private TransactionController() {
-        //onlineDeviceList = MyApplication.createTestCPInfoList(10, true);
-        //historyDeviceList = MyApplication.createTestCPInfoList(3, false);
         //初始化各设备连接列表
         onlineDeviceList = new ArrayList<>();
         historyDeviceList = new ArrayList<>();
         ctrlDeviceList = new ArrayList<>();
-        try {
-            //加载APP配置
-            config = AppConfig.load();
-        } catch (Exception e) {
-            //应注意这个异常是致命的
-            Log.e(TAG, "TransactionController: ", e);
-        }
-        //初始化消息设配器
+        //加载APP配置
+        config = loadLatestConfig();
+        //初始化消息适配器
         msgAdapter = new MessageAdapter();
-        Log.i(TAG, "TransactionController: instantiation OK");
+        Log.i(TAG, "TransactionController: Instantiation OK");
     }
 
     public List<ComputerInfo> getCurrentDevices(boolean isOnline) {
@@ -156,6 +148,10 @@ public final class TransactionController {
      * 替换新设备列表（在线/历史）
      */
     public void setNewDevices(@NonNull final List<ComputerInfo> newList, boolean isOnline) {
+        if (stopped) {
+            return;
+        }
+
         if (isOnline) {
             onlineDeviceList.clear();
             onlineDeviceList.addAll(newList);
@@ -180,13 +176,42 @@ public final class TransactionController {
     }
 
     /**
+     * 从本地加载最新的APP配置，如果加载失败将返回默认值配置
+     */
+    public AppConfig loadLatestConfig() {
+        try {
+            return AppConfig.load();
+        } catch (Exception e) {
+            // TODO: 2022/4/10 告知用户APP配置加载异常
+            //无法从本地加载配置，这是十分致命的异常，必须告知用户
+            Log.e(TAG, "loadLatestConfig: ", e);
+            //返回默认值配置，这只是保持程序正常运行的备用方案
+            return new AppConfig();
+        }
+    }
+
+    /**
      * 启动全局控制器
      */
-    public void start() {
+    protected void start() {
+        //执行启动
+        reload();
+        //加载历史设备连接列表
+        setNewDevices(historyWorker.read(), false);
+    }
+
+    /**
+     * 重新启动全局控制器
+     */
+    public void reload() {
+        if (!stopped) {
+            stop();
+        }
+
         if (!EventBus.getDefault().isRegistered(this)) {
             EventBus.getDefault().register(this);
         }
-        //启动消息设配器
+        //启动消息适配器
         msgAdapter.start();
         //初始化后台异步延时任务执行器，其线程池中的线程将被设置为守护线程
         scheduledExecutor = Executors.newScheduledThreadPool(ASYNC_THREAD_COUNT,
@@ -200,38 +225,30 @@ public final class TransactionController {
         historyWorker = new HistoryWorker(scheduledExecutor);
 
         stopped = false;
+        Log.i(TAG, "reload: SSC controller started.");
     }
 
     /**
      * 关闭全局控制器
      */
     public void stop() {
-        // TODO: 2022/3/21 stop方法需要找到合适的时机来调用，目前考虑在离开Activity的时候如果Ctrl没开就调用；
-        //  这样就需要同步考虑再次进入Activity（App未中止）的时候进行reload
+        if (stopped) {
+            return;
+        }
+        stopped = true;
+
         msgAdapter.stop();
 
         bcListener.close();
         scheduledExecutor.shutdown();
-
-        //StopBroadcastListener();
-        //StopTCPListener();
-        //StopTCPHandler();
-        //if (udpSender != null) {
-        //    udpSender.close();
-        //    udpSender = null;
-        //}
+        bcListener = null;
+        historyWorker = null;
+        scheduledExecutor = null;
 
         if (EventBus.getDefault().isRegistered(this)) {
             EventBus.getDefault().unregister(this);
         }
-        stopped = true;
-    }
-
-    protected void reload() {
-        stop();
-
-        EventBus.getDefault().register(this);
-        stopped = false;
+        Log.i(TAG, "stop: SSC controller stopped.");
     }
 
     /**
@@ -307,6 +324,7 @@ public final class TransactionController {
                 //post刷新完成事件
                 EventBus.getDefault().postSticky(new EndRefreshEvent(
                         getCurrentDevicesCount(true), true, false));
+                Log.i(TAG, "observeBCOnce: This BC listening operation is cancelled!");
             } else {
                 //post空广播事件，通知准备开始广播监听
                 EventBus.getDefault().post(new BroadcastEvent(null));
@@ -325,6 +343,7 @@ public final class TransactionController {
             if (bcListener.isListening()) {
                 //如果正在监听广播则停止它
                 bcListener.stop(false);
+                Log.i(TAG, "readHistoryOnce: The BC listening operation was stopped!");
             }
             //开始读取
             historyWorker.readStart();
