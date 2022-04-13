@@ -122,7 +122,9 @@ public class MessageAdapter {
             int oldListCount = MyApplication.getController().getCurrentDevicesCount(true);
             boolean isUpdated = !hadDiscardedBC && !stopped;    //根据丢弃状态判断是否需要执行替换操作
             if (isUpdated) {
-                //本轮监听没有发生过丢弃，替换新的在线列表
+                //本轮监听没有发生过丢弃，即本轮监听结果可靠，设置未收到广播的设备下线
+                MyApplication.getController().offlineAccordingToNew(bcInfoList);
+                //替换新的在线列表
                 MyApplication.getController().setNewDevices(bcInfoList, true);
                 Log.d(TAG, "onEndBroadcastEvent: Replaced list");
             }

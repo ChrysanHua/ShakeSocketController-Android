@@ -100,7 +100,6 @@ public class HistoryWorker {
      * @param list 要进行覆盖保存的新历史数据列表
      */
     public void write(List<ComputerInfo> list) {
-        // TODO: 2022/4/10 保存历史的时候要确保设置isSave属性
         //序列化为Json字符串
         final String json = (list == null ? "" : gson.toJson(list));
         //将Json字符串写入XML

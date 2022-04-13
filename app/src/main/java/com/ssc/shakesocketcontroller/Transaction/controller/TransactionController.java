@@ -24,8 +24,6 @@ import java.util.concurrent.TimeUnit;
 
 import androidx.annotation.NonNull;
 
-// TODO: 2022/4/9 写个假广播post测试方法，用来测试广播监听和历史读取的相关逻辑。
-
 // TODO: 2022/4/8 考虑主列表有没有必要换为线程安全的Vector，检查主列表的使用情况，同一时间是否只会有单个线程进行写操作？
 
 // TODO: 2022/3/17 正常UDP通讯端看看发送和接收是否需要分开Socket，双方均需常驻，特别是接收方；
@@ -197,7 +195,12 @@ public final class TransactionController {
         //执行启动
         reload();
         //加载历史设备连接列表
-        setNewDevices(historyWorker.read(), false);
+        List<ComputerInfo> historyList = historyWorker.read();
+        for (int i = 0; i < historyList.size(); i++) {
+            //标志其为历史设备
+            historyList.get(i).isSaved = true;
+        }
+        setNewDevices(historyList, false);
     }
 
     /**
@@ -280,6 +283,19 @@ public final class TransactionController {
     }
 
     /**
+     * 根据指定的新在线列表来设置旧列表中的元素下线
+     */
+    public void offlineAccordingToNew(@NonNull List<ComputerInfo> newOnlineList) {
+        List<ComputerInfo> oldOnlineList = new ArrayList<>(onlineDeviceList);
+        //筛选出已下线的设备连接
+        oldOnlineList.removeAll(newOnlineList);
+        for (int i = 0; i < oldOnlineList.size(); i++) {
+            //标志其为已下线
+            oldOnlineList.get(i).isOnline = false;
+        }
+    }
+
+    /**
      * 获取历史设备列表中最后一个与指定目标相似的设备信息
      *
      * @return 返回最后一个相似对象，如果没有则返回null
@@ -308,6 +324,10 @@ public final class TransactionController {
         //移除出现在旧列表中的新列表元素（因为已存在的元素以旧列表中的值为准）
         List<ComputerInfo> newListTemp = new ArrayList<>(newList);
         newListTemp.removeAll(resList);
+        //标志新元素为历史设备
+        for (int i = 0; i < newListTemp.size(); i++) {
+            newListTemp.get(i).isSaved = true;
+        }
         //合并新旧列表
         resList.addAll(newListTemp);
         return resList;
@@ -382,6 +402,11 @@ public final class TransactionController {
     public void onThrowableFailureEvent(ThrowableFailureEvent event) {
         Log.e(TAG, "onThrowableFailureEvent: ", event.getThrowable());
         //Toast "好像出了点问题…"
+    }
+
+    //测试方法，保存历史设备列表
+    public void saveHistoryDevices(List<ComputerInfo> historyList) {
+        historyWorker.write(historyList);
     }
 
     //@Subscribe(threadMode = ThreadMode.ASYNC)

@@ -261,11 +261,14 @@ public class MainActivity extends AppCompatActivity {
             //Log.i(TAG, "cur destination: " + mNavController.getCurrentDestination().getLabel());
             //Log.i(TAG, "dest ID: " + mNavController.getCurrentDestination().getId()
             //        + ", last ID: " + controller.getLastDestinationID());
+            controller.saveHistoryDevices(null);
             return true;
         } else if (id == R.id.action_about) {
             //NavigationView navigationView = findViewById(R.id.nav_view);
             //Log.i(TAG, "cur checkedItem: " + (navigationView.getCheckedItem() == null ? null
             //        : navigationView.getCheckedItem().getTitle()));
+            controller.setNewDevices(controller.getCtrlDevices(), false);
+            controller.saveHistoryDevices(controller.getCurrentDevices(false));
             return true;
         }
 
