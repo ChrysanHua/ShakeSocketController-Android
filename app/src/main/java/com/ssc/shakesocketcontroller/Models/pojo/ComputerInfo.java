@@ -51,21 +51,6 @@ public class ComputerInfo {
         this.address = address;
     }
 
-    public ComputerInfo(InetAddress address, String deviceName, String userName) {
-        //临时
-        this("", deviceName, userName);
-        this.address = address;
-        this.nickName = this.userName;
-        this.clientVersion = null;
-    }
-
-    public ComputerInfo(InetAddress address, String deviceName, String userName,
-                        boolean isConnected, boolean isSaved) {
-        //临时
-        this(address, deviceName, userName);
-        this.isConnected = isConnected;
-        this.isSaved = isSaved;
-    }
 
     /**
      * 获取IP地址字符串

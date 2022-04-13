@@ -74,7 +74,7 @@ public class MsgPacket {
             MsgPacket msgPacket = new MsgPacket();
             msgPacket.typeStr = mTypeStr;
             msgPacket.dataStr = mDataStr;
-            msgPacket.targetInfo = new ComputerInfo(mAddress, mDeviceName, mNickName);
+            msgPacket.targetInfo = new ComputerInfo("", mDeviceName, mNickName, mAddress);
             return msgPacket;
         }
 

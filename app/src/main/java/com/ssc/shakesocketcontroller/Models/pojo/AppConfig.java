@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 
 // TODO: 2022/4/4 将APP配置项替换到各个对应地方，去除原先的常量
+// TODO: 2022/4/13 【本机设备名】考虑如何初始化并替换MainActivity中对应代码
 
 /**
  * APP设置数据类

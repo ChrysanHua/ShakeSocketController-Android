@@ -24,13 +24,12 @@ import java.util.concurrent.TimeUnit;
 
 import androidx.annotation.NonNull;
 
-// TODO: 2022/4/8 考虑主列表有没有必要换为线程安全的Vector，检查主列表的使用情况，同一时间是否只会有单个线程进行写操作？
-
 // TODO: 2022/3/17 正常UDP通讯端看看发送和接收是否需要分开Socket，双方均需常驻，特别是接收方；
 //  接收方：持续接收数据，接收后交由MsgAdapter处理，而发送指令后回复超时则在外部使用定时任务来实现，
 //      可以考虑一个指令仅触发一个定时任务（无论已连接几台设备，超时后逐个处理）；
 //  发送方：可满足每次按需调用发送即可，如果单条指令需要发送给多台设备，可以在全部发送完毕之后再触发定时任务；
 
+// TODO: 2022/4/8 有必要将主列表换为线程安全的Vector，冲突主要体现在setNewDevices时的各读取访问操作，该工作暂时延后！
 // TODO: 2022/3/24 合理处理EventBus的两个全局异常接收事件。
 
 /**
@@ -146,6 +145,7 @@ public final class TransactionController {
      * 替换新设备列表（在线/历史）
      */
     public void setNewDevices(@NonNull final List<ComputerInfo> newList, boolean isOnline) {
+        //该方法线程不安全！
         if (stopped) {
             return;
         }

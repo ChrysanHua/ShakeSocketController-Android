@@ -2,53 +2,80 @@ package com.ssc.shakesocketcontroller;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 import com.ssc.shakesocketcontroller.Models.pojo.ComputerInfo;
-import com.ssc.shakesocketcontroller.Models.events.command.BaseCmdEvent;
-import com.ssc.shakesocketcontroller.Models.events.command.ShutdownCmd;
+import com.ssc.shakesocketcontroller.Transaction.controller.MyApplication;
 import com.ssc.shakesocketcontroller.Utils.DeviceUtil;
 
 import org.junit.Test;
 
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 public class ComputerInfoTest {
 
     @Test
     public void getDeviceName() {
-        Gson gson = new GsonBuilder().serializeNulls().create();
-        HashMap<String, ComputerInfo> map = new HashMap<>();
+        //验证Gson结果
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
-        ComputerInfo info = new ComputerInfo(DeviceUtil.getLocalAddress(),
-                "Computer", "nike");
-        map.put("1", info);
-        Collection<ComputerInfo> infos = map.values();
-        info = map.get("1");
-        System.out.println(infos.contains(info));
-        String s = gson.toJson(info);
-        System.out.println(s);
-        ComputerInfo ok = gson.fromJson(s, ComputerInfo.class);
-        //System.out.println(ok.getAddress() + " " + ok.getDeviceName() + " " + ok.getNickName());
-        //System.out.println(String.format("%s(%s)", info.getDeviceName(), info.getIP()));
-        System.out.println(info.equals(ok));
-        System.out.println(map.containsValue(ok));
-    }
+        List<ComputerInfo> infoList = MyApplication.createTestCPInfoList(10, false);
+        for (int i = 0; i < infoList.size(); i++) {
+            if (i % 2 == 0) {
+                infoList.get(i).nickName = null;
+            } else if (i != 5) {
+                infoList.get(i).nickName = "";
+            }
+        }
+        //showList(infoList);
 
-    @Test
-    public void getNickName() {
-        Gson gson = new GsonBuilder().serializeNulls().create();
-        BaseCmdEvent event = new ShutdownCmd(1000);
-        String s = gson.toJson(event);
-        System.out.println(s);
+        String s = gson.toJson(infoList);
+        System.err.println(s);
 
+        Type collectionType = new TypeToken<ArrayList<ComputerInfo>>() {
+        }.getType();
+        List<ComputerInfo> resList = gson.fromJson(s, collectionType);
+        System.err.println(infoList.equals(resList));
+        System.err.println(resList == null);
+        showList(resList);
     }
 
     @Test
     public void getAddress() {
+        //ComputerInfo对象Equals比较
+        ComputerInfo info1 = new ComputerInfo("UUID", "Computer", "nike", DeviceUtil.getLocalAddress());
+        ComputerInfo info2 = new ComputerInfo("UUID", "Computer", "nike", DeviceUtil.getLocalAddress());
+        List<ComputerInfo> infoList1 = new ArrayList<>();
+        List<ComputerInfo> infoList2 = new ArrayList<>();
+        infoList1.add(info1);
+        infoList2.add(info2);
+
+        info2.nickName = "NEW_NickName";
+        System.out.println("ip: " + info1.getIP().equals(info2.getIP()));
+        System.out.println("equals: " + info1.equals(info2));
+        System.out.println("==: " + (info1 == info2));
+        System.out.println("list contains: " + infoList1.contains(info2));
+        System.out.println("list equals: " + infoList1.equals(infoList2));
+        assertEquals(info1, info2);
+    }
+
+    @Test
+    public void getNickName() {
+        //输出检查Gson结果
+        Gson gson = new GsonBuilder().serializeNulls().create();
+
+        ComputerInfo info1 = new ComputerInfo("73006b15-b9a1-4fcd-b64b-05b20640dee5", "Computer", null);
+        String s = gson.toJson(info1);
+        System.out.println(s);
+
+        //测试json字符串少一个字段，多一个无关字段，然后反序列化
+        //s = "{\"ip\":\"192.168.1.2\",\"userName\":\"nike\",\"nickName\":\"nike\",\"isChecked\":false,\"testField\":\"abc\"}";
+        ComputerInfo info2 = gson.fromJson(s, ComputerInfo.class);
+        System.out.println(info2);
     }
 
     @Test
@@ -67,7 +94,7 @@ public class ComputerInfoTest {
     public void isComplete() {
         //证实集合的参数传递的是引用
         int initCount = 5, resCount = initCount - 1;
-        List<ComputerInfo> infoList = BuildTestCPInfos(initCount);
+        List<ComputerInfo> infoList = MyApplication.createTestCPInfoList(initCount, true);
         ModifyListTest(infoList);
         showList(infoList);
         assertEquals(resCount, infoList.size());
@@ -79,19 +106,11 @@ public class ComputerInfoTest {
     }
 
     private void showList(List<ComputerInfo> infoList) {
-        System.out.println("count: " + infoList.size());
+        System.err.println("count: " + infoList.size());
         for (ComputerInfo c : infoList) {
-            //System.out.print(c.getDeviceName() + ", ");
+            System.out.println(c);
         }
         System.out.println();
     }
 
-    private List<ComputerInfo> BuildTestCPInfos(int count) {
-        List<ComputerInfo> infos = new ArrayList<>(count);
-        for (int i = 1; i <= count; i++) {
-            infos.add(new ComputerInfo(DeviceUtil.getLocalAddress(),
-                    "CP" + i, "NickName" + i));
-        }
-        return infos;
-    }
 }

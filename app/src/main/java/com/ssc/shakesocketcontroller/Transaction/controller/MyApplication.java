@@ -35,7 +35,7 @@ public class MyApplication extends Application {
         InetAddress address = DeviceUtil.getLocalAddress();
         List<ComputerInfo> infos = new ArrayList<>(count);
         for (int i = 1; i <= count; i++) {
-            ComputerInfo cp = new ComputerInfo(address, "CP" + i, "NickName" + i + online);
+            ComputerInfo cp = new ComputerInfo("UUID" + i, "CP" + i, "NickName" + i + online, address);
             cp.isOnline = online || i % 2 == 0;
             cp.isSaved = (i <= 2);
             //cp.isConnected = (i == 2 || i == 11);
