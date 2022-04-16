@@ -1,5 +1,7 @@
 <resources>
     <string name="app_name">ShakeSocketController</string>
+    <string name="app_ssc_service_name">SSC Service</string>
+    <string name="app_ssc_service_desc">ShakeSocketController的控制监听服务</string>
     <string name="nav_header_img_desc">Navigation header</string>
     <string name="floating_btn_desc">Floating On-Off</string>
     <string name="txt_text_view">TextView</string>

@@ -169,8 +169,8 @@ public class MessageAdapter {
 
     //伪方法
     private void analyzeDGPacket(BroadcastEvent event) {
-        // TODO: 2022/4/1 所有的数据报包是否都应该使用同一的接口，像MsgPacket.Builder那样传入数据报，
-        //  然后执行IP判断、Byte解析等等，根据数据里包含的类型信息创建对应的处理类对象，
+        // TODO: 2022/4/1 所有的数据报包是否都应该使用统一的接口，像MsgPacket.Builder那样传入数据报，
+        //  然后执行IP端口判断、Byte解析等等，根据数据里包含的类型信息创建对应的处理类对象，
         //  最后外部调用其统一的接口方法来实现多态。
         /*这是旧的广播监听数据分析代码，应该由单独的方法（或类）来解析数据报，最终广播里只要Json字符串
         try {

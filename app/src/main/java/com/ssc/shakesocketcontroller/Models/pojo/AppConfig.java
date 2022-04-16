@@ -33,6 +33,9 @@ public class AppConfig {
     public int bcPort;                          //广播监听端口
     public int bcListenDuration;                //单次广播监听时长
     public int bcMaxReceiveBufSize;             //接收广播数据包的Buf大小
+    public int msgPort;                         //消息监听端口
+    public int msgResponseTimeout;              //消息响应超时
+    public int msgMaxReceiveBufSize;            //接收消息数据包的Buf大小
 
     public boolean ignoredSameHistory;          //广播监听时忽略相似的历史连接
     public boolean autoSwipeRefresh;            //进入列表时自动下拉刷新
@@ -52,6 +55,9 @@ public class AppConfig {
         this.bcPort = 19019;
         this.bcListenDuration = 3000;
         this.bcMaxReceiveBufSize = 4096;
+        this.msgPort = 10019;
+        this.msgResponseTimeout = 3000;
+        this.msgMaxReceiveBufSize = 4096;
 
         this.ignoredSameHistory = false;
         this.autoSwipeRefresh = true;
