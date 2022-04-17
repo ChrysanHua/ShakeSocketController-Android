@@ -67,8 +67,6 @@ public class BroadcastListener {
                 //create socket
                 bcSocket = new DatagramSocket(port);
                 Log.d(TAG, "beginListen: Ready with port: " + port);
-                //modify state
-                listening = true;
                 //begin receive
                 while (listening) {
                     DatagramPacket packet = new DatagramPacket(
@@ -111,6 +109,8 @@ public class BroadcastListener {
         if (listening) {
             return;
         }
+        //modify state
+        listening = true;
 
         EventBus.getDefault().register(this);
         //begin async listen
