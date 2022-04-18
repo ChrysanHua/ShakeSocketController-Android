@@ -23,11 +23,11 @@ public class BroadcastEvent {
         return initEvent;
     }
 
-    public byte[] getData() {
-        // TODO: 2022/3/23 有待验证Packet接收回来的Buf是原始固定大小还是实际大小
+    public byte[] getValidData() {
         if (initEvent) {
             return null;
         } else {
+            //返回接收Buf中的有效部分（DatagramPacket.getLength()返回的才是实际接收的长度）
             return ByteUtil.subByte(mPacket.getData(), mPacket.getOffset(), mPacket.getLength());
         }
     }

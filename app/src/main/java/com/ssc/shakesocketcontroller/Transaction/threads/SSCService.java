@@ -1,24 +1,34 @@
 package com.ssc.shakesocketcontroller.Transaction.threads;
 
 import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.os.IBinder;
 import android.util.Log;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.ssc.shakesocketcontroller.Models.events.signal.SSCServiceExceptionEvent;
+import com.ssc.shakesocketcontroller.Models.events.signal.UDPReceiveEvent;
 import com.ssc.shakesocketcontroller.Models.pojo.AppConfig;
+import com.ssc.shakesocketcontroller.R;
 import com.ssc.shakesocketcontroller.Transaction.controller.MyApplication;
+import com.ssc.shakesocketcontroller.UI.activities.MainActivity;
 
 import org.greenrobot.eventbus.EventBus;
 
+import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.SocketException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-// TODO: 2022/4/16 广播监听那边要处理listening赋值时机，以修复连续调用可能会导致启动多个线程同时监听的问题。
-// TODO: 2022/4/16 前台服务考虑是否需要允许多个线程同时监听（先在隔壁项目测试连续启动服务会执行哪些回调）
-//  （如果需要则增加一个配置项；同时仅当判断当连接数量超过一定比例后才开启？）
+import androidx.core.app.NotificationCompat;
+
+// TODO: 2022/4/16 前台服务允许多个线程同时监听，启用策略在controller中实现↓
+//  （当配置开启时，根据连接数量计算线程数，每超10个多开一条线程，但最多不超过【核心数-1】）
 
 /**
  * SSC的Ctrl前台服务，负责发送和接收实际的Ctrl操作
@@ -28,10 +38,19 @@ public class SSCService extends Service {
     /**
      * 前台服务通知渠道ID
      */
-    private static final String FOREGROUND_SERVICE_CHANNEL_ID = "SSC_FOREGROUND_SERVICE_CHANNEL";
+    public static final String FOREGROUND_SERVICE_CHANNEL_ID = "SSC_FOREGROUND_SERVICE_CHANNEL";
+    /**
+     * 前台服务通知渠道名
+     */
+    public static final String FOREGROUND_SERVICE_CHANNEL_NAME = "SSC服务";
+    /**
+     * 前台服务通知ID
+     */
+    public static final int FOREGROUND_SERVICE_NOTIFICATION_ID = 1;
 
     private final int msgPort;                      //消息监听端口
     private final int msgMaxReceiveBufSize;         //接收消息数据包的最大Buf大小
+    private final boolean allowMTListen;            //是否允许多线程监听
 
     private ExecutorService executor;               //执行线程池
     private DatagramSocket udpSocket;               //UDPSocket，用于发送和接收
@@ -40,9 +59,10 @@ public class SSCService extends Service {
 
     public SSCService() {
         //通过APP配置初始化参数
-        AppConfig config = MyApplication.getController().getCurrentConfig();
+        final AppConfig config = MyApplication.getController().getCurrentConfig();
         this.msgPort = config.msgPort;
         this.msgMaxReceiveBufSize = config.msgMaxReceiveBufSize;
+        this.allowMTListen = config.allowSSCMTListen;
     }
 
     @Override
@@ -62,19 +82,93 @@ public class SSCService extends Service {
 
         if (udpSocket != null) {
             //提升为前台服务
-            //startForeground(1,buildForegroundNotification());
+            startForeground(FOREGROUND_SERVICE_NOTIFICATION_ID, buildForegroundNotification());
         }
 
         EventBus.getDefault().register(this);
         Log.i(TAG, "onCreate: SSC Service Instantiation OK.");
     }
 
+    /**
+     * 构建该前台服务对应的通知
+     */
     private Notification buildForegroundNotification() {
-        return null;
+        final NotificationManager notificationManager =
+                (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            //创建通知渠道（如果需要）
+            notificationManager.createNotificationChannel(new NotificationChannel(
+                    FOREGROUND_SERVICE_CHANNEL_ID,
+                    FOREGROUND_SERVICE_CHANNEL_NAME,
+                    NotificationManager.IMPORTANCE_LOW));
+        }
+
+        //创建点击通知时的行为
+        final PendingIntent pi = PendingIntent.getActivity(
+                this, 0, new Intent(this, MainActivity.class), 0);
+        //标题
+        String title = "Listening…";
+        int ctrlCount = MyApplication.getController().getCtrlDevicesCount();
+        if (ctrlCount > 0) {
+            title = MyApplication.getController().getCtrlDevices().get(0).nickName;
+            if (ctrlCount > 1) {
+                title += " 等" + ctrlCount + "台设备";
+            }
+        }
+        //内容
+        final String content = MyApplication.getController().getCtrlConnectedDevicesCount()
+                + "台设备已成功连接";
+
+        //创建通知对象
+        return new NotificationCompat.Builder(this, FOREGROUND_SERVICE_CHANNEL_ID)
+                .setContentIntent(pi)
+                .setSmallIcon(R.drawable.ic_ssc_switch)
+                .setContentTitle(title)
+                .setContentText(content)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .build();
     }
 
+    /**
+     * 开始无限循环监听接收与Ctrl相关的UDP消息数据报
+     */
     private void beginListen() {
-        //listening在哪里设置才合适？
+        executor.submit(() -> {
+            Log.i(TAG, "beginListen: UDPSocket starts listening in thread: "
+                    + Thread.currentThread().getName());
+
+            //获取当前线程ID
+            final long threadID = Thread.currentThread().getId();
+            boolean hasException = false;   //是否发生异常
+
+            try {
+                //开始持续监听
+                while (listening) {
+                    DatagramPacket packet = new DatagramPacket(
+                            new byte[msgMaxReceiveBufSize], msgMaxReceiveBufSize);
+                    udpSocket.receive(packet);
+                    //post接收到UDP数据报事件
+                    EventBus.getDefault().post(new UDPReceiveEvent(packet, threadID));
+                }
+                Log.w(TAG, "beginListen: Socket reception stopped unexpectedly");
+            } catch (SocketException e) {
+                //预期内的异常，Socket被关闭
+                Log.d(TAG, "beginListen: Socket closed", e);
+                //Log.i(TAG, "beginListen: Socket closed.");
+                listening = false;
+                return;
+            } catch (Throwable e) {
+                //监听异常终止
+                Log.e(TAG, "beginListen: Socket exception", e);
+                hasException = true;
+            }
+
+            //非主动终止监听，停止服务，并post前台服务异常事件
+            listening = false;
+            stopSelf();
+            EventBus.getDefault().post(new SSCServiceExceptionEvent(hasException, threadID));
+        });
     }
 
     @Override
@@ -85,12 +179,15 @@ public class SSCService extends Service {
         } else if (udpSocket == null) {
             //UDPSocket初始化失败，停止服务，并post前台服务异常事件
             stopSelf();
-            // TODO: 2022/4/16 前台服务异常事件 -> 监听过程的异常也使用该事件
-            //EventBus.getDefault().post();
+            EventBus.getDefault().post(new SSCServiceExceptionEvent());
         } else if (!listening) {
+            //设置状态
+            listening = true;
             //开始执行异步监听
-            //beginListen();
-            //Log.i(TAG, "onCreate: UDPSocket starts listening with port: ");
+            beginListen();
+        } else if (allowMTListen) {     //如果不允许多线程监听则忽略其重复启动的调用
+            //每次调用（启动）都开启一个新线程进行同步多线程监听
+            beginListen();
         }
         Log.d(TAG, "onStartCommand: SSC Service running.");
         return START_STICKY;
@@ -101,10 +198,14 @@ public class SSCService extends Service {
         EventBus.getDefault().unregister(this);
         try {
             if (udpSocket != null) {
+                //关闭Socket
                 udpSocket.close();
             }
+
+            //关闭执行线程池
+            executor.shutdown();
         } catch (Throwable e) {
-            Log.e(TAG, "onDestroy: UDPSocket closing exception.", e);
+            Log.e(TAG, "onDestroy: SSC Service closing exception.", e);
         }
         Log.i(TAG, "onDestroy: SSC Service Closed.");
     }

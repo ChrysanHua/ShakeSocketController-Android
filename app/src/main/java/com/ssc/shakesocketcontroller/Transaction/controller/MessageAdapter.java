@@ -88,7 +88,7 @@ public class MessageAdapter {
             //解析event里的数据报，将其转换为一个可用的CPInfo对象
             // TODO: 2022/4/7 先用伪代码实现逻辑↓，反序列化json记得处理异常
             Log.d(TAG, "onBroadcastEvent: get one BC.");
-            String json = StrUtil.byteToStr(event.getData());
+            String json = StrUtil.byteToStr(event.getValidData());
             ComputerInfo bcInfo = gson.fromJson(json, ComputerInfo.class);
             if (bcInfo != null) {
                 //设置IP信息

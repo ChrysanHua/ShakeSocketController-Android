@@ -100,6 +100,17 @@ public final class TransactionController {
         return getCtrlDevices().size();
     }
 
+    public int getCtrlConnectedDevicesCount() {
+        int count = 0;
+        for (int i = 0; i < ctrlDeviceList.size(); i++) {
+            ComputerInfo info = ctrlDeviceList.get(i);
+            if (info.isConnected && info.isSaved) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     public int getLastDestinationID() {
         return lastDestinationID;
     }

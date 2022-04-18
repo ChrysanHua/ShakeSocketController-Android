@@ -101,4 +101,8 @@ public final class DeviceUtil {
         return UUID.randomUUID().toString();
     }
 
+    public static int getAvailableProcessors() {
+        return Runtime.getRuntime().availableProcessors();
+    }
+
 }

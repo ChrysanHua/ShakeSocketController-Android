@@ -39,6 +39,7 @@ public class AppConfig {
 
     public boolean ignoredSameHistory;          //广播监听时忽略相似的历史连接
     public boolean autoSwipeRefresh;            //进入列表时自动下拉刷新
+    public boolean allowSSCMTListen;            //允许使用多线程进行SSC监听
 
     public final transient String deviceName;   //本机设备名
 
@@ -61,6 +62,7 @@ public class AppConfig {
 
         this.ignoredSameHistory = false;
         this.autoSwipeRefresh = true;
+        this.allowSSCMTListen = false;
     }
 
 
