@@ -24,10 +24,10 @@ import java.util.concurrent.TimeUnit;
 
 import androidx.annotation.NonNull;
 
-// TODO: 2022/3/17 正常UDP通讯端看看发送和接收是否需要分开Socket，双方均需常驻，特别是接收方；
-//  接收方：持续接收数据，接收后交由MsgAdapter处理，而发送指令后回复超时则在外部使用定时任务来实现，
-//      可以考虑一个指令仅触发一个定时任务（无论已连接几台设备，超时后逐个处理）；
-//  发送方：可满足每次按需调用发送即可，如果单条指令需要发送给多台设备，可以在全部发送完毕之后再触发定时任务；
+// TODO: 2022/3/17 SSC前台服务：启动/停止服务功能在这里加一个方法；
+//  接收方：持续接收数据，接收后交由MsgAdapter处理；
+//  发送方：实现单条指令只post一次事件，回复超时监测可以在全部设备发送完毕之后再在外部触发定时任务；
+//      单条指令仅触发一个定时任务（无论已连接几台设备，超时后逐个处理）；
 
 // TODO: 2022/4/8 有必要将主列表换为线程安全的Vector，冲突主要体现在setNewDevices时的各读取访问操作，该工作暂时延后！
 // TODO: 2022/3/24 合理处理EventBus的两个全局异常接收事件。
@@ -38,17 +38,12 @@ import androidx.annotation.NonNull;
 public final class TransactionController {
     private static final String TAG = "TransactionController";
 
-    private static final int BC_PORT = 19019;
-    private static final int MSG_PORT = 10019;
-    private static final int TCP_PORT = 11019;
-
-    private static final int BC_LISTEN_DURATION = 3000;
-    private static final int ASYNC_THREAD_COUNT = 3;
-
     /**
      * 自引用，用于单例模式的对象
      */
     private static final TransactionController controllerInstance = new TransactionController();
+
+    private static final int ASYNC_THREAD_COUNT = 3;        //异步延时任务执行器的最大线程数
 
     private volatile boolean stopped = true;                //启动状态
     private volatile boolean ctrlON = false;                //控制（Ctrl）状态
@@ -234,7 +229,7 @@ public final class TransactionController {
                         .setDaemon(true)
                         .build());
         //初始化广播监听器
-        bcListener = new BroadcastListener(BC_PORT, BC_LISTEN_DURATION, scheduledExecutor);
+        bcListener = new BroadcastListener(scheduledExecutor);
         //初始化历史连接记录器
         historyWorker = new HistoryWorker(scheduledExecutor);
 
@@ -282,7 +277,7 @@ public final class TransactionController {
                 //仅存在于历史列表，使用列表值，但需复制IP
                 resInfo = historyDeviceList.get(historyDeviceList.indexOf(info));
                 resInfo.address = info.address;
-            } else if (!MyApplication.getController().getCurrentConfig().ignoredSameHistory) {
+            } else if (!config.ignoredSameHistory) {
                 ComputerInfo sameHistory = lastInfoSameInHistory(info);
                 if (sameHistory != null) {
                     //仅存在于历史列表中，但信息已发生变化，使用新值，但需复制设置
@@ -419,19 +414,5 @@ public final class TransactionController {
     public void saveHistoryDevices(List<ComputerInfo> historyList) {
         historyWorker.write(historyList);
     }
-
-    //@Subscribe(threadMode = ThreadMode.ASYNC)
-    //public void onSendUDPEvent(SendUDPEvent event) {
-    //    if (udpSender == null)
-    //        return;
-    //    try {
-    //        DatagramPacket packet = new DatagramPacket(event.getMsgData(),
-    //                event.getMsgData().length, event.getAddress(), MSG_PORT);
-    //        udpSender.send(packet);
-    //        Log.d(TAG, "onSendUDPEvent: send packet success");
-    //    } catch (IOException e) {
-    //        Log.e(TAG, "onSendUDPEvent: udpSender send() failed", e);
-    //    }
-    //}
 
 }

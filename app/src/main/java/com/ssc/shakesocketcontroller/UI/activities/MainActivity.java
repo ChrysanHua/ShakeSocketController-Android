@@ -68,7 +68,6 @@ public class MainActivity extends AppCompatActivity {
     private int mLastDestinationID;                         //最后一个导航目的地ID
 
 
-    // TODO: 2022/3/13 实现前台服务功能，建议发送和接收分开Socket，然后一起常驻在前台服务当中
     // TODO: 2022/3/9 考虑已发现设备的心跳问题：
     //                  已连接：等到发具体指令的时候再判断是否已断开；
     //                  未连接：在每次下拉刷新监听广播的时候整体替换为新列表；
@@ -161,7 +160,7 @@ public class MainActivity extends AppCompatActivity {
             NavHeaderViewHolder holder = new NavHeaderViewHolder(navigationView.getHeaderView(0));
             navigationView.setTag(holder);
             //设置本机设备名
-            holder.deviceName.setText(DeviceUtil.getDeviceName());
+            holder.deviceName.setText(controller.getCurrentConfig().nickName);
         }
 
         //进入Activity先根据Ctrl状态更新UI

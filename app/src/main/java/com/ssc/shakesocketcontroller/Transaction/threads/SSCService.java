@@ -11,6 +11,7 @@ import android.util.Log;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.ssc.shakesocketcontroller.Models.events.signal.SSCServiceExceptionEvent;
+import com.ssc.shakesocketcontroller.Models.events.signal.SendUDPEvent;
 import com.ssc.shakesocketcontroller.Models.events.signal.UDPReceiveEvent;
 import com.ssc.shakesocketcontroller.Models.pojo.AppConfig;
 import com.ssc.shakesocketcontroller.R;
@@ -18,6 +19,7 @@ import com.ssc.shakesocketcontroller.Transaction.controller.MyApplication;
 import com.ssc.shakesocketcontroller.UI.activities.MainActivity;
 
 import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
 
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -29,6 +31,8 @@ import androidx.core.app.NotificationCompat;
 
 // TODO: 2022/4/16 前台服务允许多个线程同时监听，启用策略在controller中实现↓
 //  （当配置开启时，根据连接数量计算线程数，每超10个多开一条线程，但最多不超过【核心数-1】）
+
+// TODO: 2022/4/18 思考前台服务通知更新问题，在这里更新还是在controller中更新？
 
 /**
  * SSC的Ctrl前台服务，负责发送和接收实际的Ctrl操作
@@ -151,7 +155,7 @@ public class SSCService extends Service {
                     //post接收到UDP数据报事件
                     EventBus.getDefault().post(new UDPReceiveEvent(packet, threadID));
                 }
-                Log.w(TAG, "beginListen: Socket reception stopped unexpectedly");
+                Log.w(TAG, "beginListen: Socket reception stopped unexpectedly!");
             } catch (SocketException e) {
                 //预期内的异常，Socket被关闭
                 Log.d(TAG, "beginListen: Socket closed", e);
@@ -160,7 +164,7 @@ public class SSCService extends Service {
                 return;
             } catch (Throwable e) {
                 //监听异常终止
-                Log.e(TAG, "beginListen: Socket exception", e);
+                Log.e(TAG, "beginListen: Socket exception.", e);
                 hasException = true;
             }
 
@@ -189,7 +193,7 @@ public class SSCService extends Service {
             //每次调用（启动）都开启一个新线程进行同步多线程监听
             beginListen();
         }
-        Log.d(TAG, "onStartCommand: SSC Service running.");
+        Log.i(TAG, "onStartCommand: SSC Service running.");
         return START_STICKY;
     }
 
@@ -216,6 +220,30 @@ public class SSCService extends Service {
         return null;
     }
 
-    // TODO: 2022/4/16 接收send事件，里面要判断udpSocket非空，利用线程池执行
+    /**
+     * 发送Ctrl相关消息事件
+     */
+    @Subscribe(priority = 1)
+    public void onSendUDPEvent(SendUDPEvent event) {
+        if (udpSocket == null || udpSocket.isClosed() || !listening) {
+            return;
+        }
 
+        //开始执行异步发送
+        executor.submit(() -> {
+            //获取当前线程ID
+            final long threadID = Thread.currentThread().getId();
+
+            try {
+                // TODO: 2022/4/18 从event中构造出数据报，完善发送代码；要注意单次调用可能需要发送多条数据
+                DatagramPacket packet = null;   //伪代码
+                udpSocket.send(packet);
+                Log.d(TAG, "onSendUDPEvent: send packet successfully");
+            } catch (Throwable e) {
+                //发送失败，post前台服务异常事件
+                Log.e(TAG, "onSendUDPEvent: send packet failed.", e);
+                EventBus.getDefault().post(new SSCServiceExceptionEvent(event, threadID));
+            }
+        });
+    }
 }

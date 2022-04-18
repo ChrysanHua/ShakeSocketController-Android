@@ -64,7 +64,7 @@ public class HistoryWorker {
             //反序列化Json字符串
             infoList = gson.fromJson(json, listType);
         } catch (Exception e) {
-            Log.e(TAG, "read: failed", e);
+            Log.e(TAG, "read: failed.", e);
         }
 
         if (infoList == null) {

@@ -5,6 +5,7 @@ import android.util.Log;
 import com.ssc.shakesocketcontroller.Models.events.signal.BroadcastEvent;
 import com.ssc.shakesocketcontroller.Models.events.signal.CtrlStateChangedEvent;
 import com.ssc.shakesocketcontroller.Models.events.signal.EndBroadcastEvent;
+import com.ssc.shakesocketcontroller.Models.pojo.AppConfig;
 import com.ssc.shakesocketcontroller.Transaction.controller.MyApplication;
 
 import org.greenrobot.eventbus.EventBus;
@@ -25,19 +26,21 @@ import java.util.concurrent.ScheduledFuture;
 public class BroadcastListener {
     private static final String TAG = "BroadcastListener";
 
-    private static final int MAX_RECEIVE_BUF_SIZE = 4096;
     private final AsyncExecutor executor;           //异步执行器
     private final int port;                         //广播监听端口号
     private final int duration;                     //广播监听时长
+    private final int bcMaxReceiveBufSize;          //广播消息数据包的最大Buf大小
     private DatagramSocket bcSocket;                //监听Socket
     private volatile boolean listening = false;     //监听状态
     private boolean closed = false;                 //监听器是否已关闭
     private ScheduledFuture<?> saveFuture;          //延时停止任务的操作计划
 
 
-    public BroadcastListener(int port, int duration, Executor executor) {
-        this.port = port;
-        this.duration = duration;
+    public BroadcastListener(Executor executor) {
+        final AppConfig config = MyApplication.getController().getCurrentConfig();
+        this.port = config.bcPort;
+        this.duration = config.bcListenDuration;
+        this.bcMaxReceiveBufSize = config.bcMaxReceiveBufSize;
         this.executor = AsyncExecutor.builder().threadPool(executor).build();
     }
 
@@ -70,21 +73,21 @@ public class BroadcastListener {
                 //begin receive
                 while (listening) {
                     DatagramPacket packet = new DatagramPacket(
-                            new byte[MAX_RECEIVE_BUF_SIZE], MAX_RECEIVE_BUF_SIZE);
+                            new byte[bcMaxReceiveBufSize], bcMaxReceiveBufSize);
                     bcSocket.receive(packet);
                     //post BroadcastEvent
                     EventBus.getDefault().post(new BroadcastEvent(packet));
                 }
-                Log.w(TAG, "beginListen: Socket reception stopped unexpectedly");
+                Log.w(TAG, "beginListen: Socket reception stopped unexpectedly!");
             } catch (SocketException e) {
                 //expected closure, modify state
-                //Log.d(TAG, "beginListen: Socket closed", e);
+                //Log.d(TAG, "beginListen: Socket closed.", e);
                 Log.i(TAG, "beginListen: Socket closed.");
                 listening = false;
                 return;
             } catch (Throwable e) {
                 //unexpected shutdown
-                Log.e(TAG, "beginListen: Socket exception", e);
+                Log.e(TAG, "beginListen: Socket exception.", e);
                 unexpectedEx = e;
             }
 
@@ -145,7 +148,7 @@ public class BroadcastListener {
                 bcSocket.close();
             }
         } catch (Exception e) {
-            Log.e(TAG, "stop: Socket closing failed", e);
+            Log.e(TAG, "stop: Socket closing failed.", e);
         }
         if (EventBus.getDefault().isRegistered(this)) {
             EventBus.getDefault().unregister(this);

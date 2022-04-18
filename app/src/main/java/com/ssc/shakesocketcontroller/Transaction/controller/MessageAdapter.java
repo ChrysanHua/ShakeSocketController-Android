@@ -248,7 +248,7 @@ public class MessageAdapter {
         }
     }
 
-    /* 收到设备发过来的信息
+    /* 收到设备发过来的信息（供参考的旧代码）
     @Subscribe
     public void onTCPReceiveEvent(TCPReceiveEvent event) {
         try {
@@ -260,6 +260,21 @@ public class MessageAdapter {
             }
         } catch (Exception e) {
             Log.e(TAG, "onTCPReceiveEvent: TCPReceive analyze failed", e);
+        }
+    }*/
+
+    /* 发送信息给设备（供参考的旧代码）
+    @Subscribe(threadMode = ThreadMode.ASYNC)
+    public void onSendUDPEvent(SendUDPEvent event) {
+        if (udpSender == null)
+            return;
+        try {
+            DatagramPacket packet = new DatagramPacket(event.getMsgData(),
+                    event.getMsgData().length, event.getAddress(), MSG_PORT);
+            udpSender.send(packet);
+            Log.d(TAG, "onSendUDPEvent: send packet success");
+        } catch (IOException e) {
+            Log.e(TAG, "onSendUDPEvent: udpSender send() failed", e);
         }
     }*/
 
