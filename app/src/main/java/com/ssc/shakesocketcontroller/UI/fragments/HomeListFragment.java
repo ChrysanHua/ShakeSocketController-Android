@@ -67,7 +67,7 @@ public class HomeListFragment extends Fragment {
         //如果之前已经启动控制，则重新进入APP时显示上次退出前的最后一个Fragment界面
         if (curIsOnlineView && MyApplication.getController().isCtrlON()) {
             NavController navController = Navigation.findNavController(view);
-            int lastID = MyApplication.getController().getLastDestinationID();
+            final int lastID = MyApplication.getController().getLastDestinationID();
             if (lastID != -1 && lastID != navController.getGraph().getStartDestination()) {
                 //导航到上次的界面
                 navController.navigate(lastID, null,

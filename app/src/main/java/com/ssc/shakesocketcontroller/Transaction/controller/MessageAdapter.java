@@ -12,6 +12,7 @@ import com.ssc.shakesocketcontroller.Models.events.signal.EndBroadcastEvent;
 import com.ssc.shakesocketcontroller.Models.events.signal.EndReadHistoryEvent;
 import com.ssc.shakesocketcontroller.Models.events.signal.EndRefreshEvent;
 import com.ssc.shakesocketcontroller.Models.events.signal.LaunchConnectEvent;
+import com.ssc.shakesocketcontroller.Models.events.signal.UDPReceiveEvent;
 import com.ssc.shakesocketcontroller.Models.pojo.ComputerInfo;
 import com.ssc.shakesocketcontroller.Models.pojo.MsgPacket;
 import com.ssc.shakesocketcontroller.Utils.StrUtil;
@@ -138,6 +139,9 @@ public class MessageAdapter {
         }
     }
 
+    /**
+     * 历史读取结束事件
+     */
     @Subscribe(priority = 4)
     public void onEndReadHistoryEvent(EndReadHistoryEvent event) {
         Log.d(TAG, "onEndReadHistoryEvent: List Size -> " + event.getHistoryList().size());
@@ -165,6 +169,15 @@ public class MessageAdapter {
             EventBus.getDefault().postSticky(new EndRefreshEvent(oldListCount, false, isUpdated));
             Log.d(TAG, "onEndReadHistoryEvent: after post EndRefreshEvent");
         }
+    }
+
+    /**
+     * SSC监听事件，即收到一个UDP数据报
+     */
+    @Subscribe
+    public void onUDPReceiveEvent(UDPReceiveEvent event) {
+        Log.d(TAG, "onUDPReceiveEvent: get one Msg.");
+        // TODO: 2022/4/19 判断数据包是否合法，如果合法就打包，然后处理执行
     }
 
     //伪方法

@@ -1,14 +1,19 @@
 package com.ssc.shakesocketcontroller.Transaction.controller;
 
+import android.content.Intent;
+import android.os.Build;
 import android.util.Log;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.ssc.shakesocketcontroller.Models.events.signal.BroadcastEvent;
 import com.ssc.shakesocketcontroller.Models.events.signal.EndRefreshEvent;
+import com.ssc.shakesocketcontroller.Models.events.signal.SSCServiceExceptionEvent;
 import com.ssc.shakesocketcontroller.Models.pojo.AppConfig;
 import com.ssc.shakesocketcontroller.Models.pojo.ComputerInfo;
 import com.ssc.shakesocketcontroller.Transaction.threads.BroadcastListener;
 import com.ssc.shakesocketcontroller.Transaction.threads.HistoryWorker;
+import com.ssc.shakesocketcontroller.Transaction.threads.SSCService;
+import com.ssc.shakesocketcontroller.Utils.DeviceUtil;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -24,7 +29,7 @@ import java.util.concurrent.TimeUnit;
 
 import androidx.annotation.NonNull;
 
-// TODO: 2022/3/17 SSC前台服务：启动/停止服务功能在这里加一个方法；
+// TODO: 2022/3/17 SSC前台服务：测试服务的启动、停止等
 //  接收方：持续接收数据，接收后交由MsgAdapter处理；
 //  发送方：实现单条指令只post一次事件，回复超时监测可以在全部设备发送完毕之后再在外部触发定时任务；
 //      单条指令仅触发一个定时任务（无论已连接几台设备，超时后逐个处理）；
@@ -47,6 +52,7 @@ public final class TransactionController {
 
     private volatile boolean stopped = true;                //启动状态
     private volatile boolean ctrlON = false;                //控制（Ctrl）状态
+    private volatile boolean sscServiceStateFlag = false;   //SSC服务启动状态标志（仅标志操作状态不能表示实际运行状态）
     private int lastDestinationID = -1;                     //最后一个导航目的地ID
 
     private final List<ComputerInfo> onlineDeviceList;      //在线设备连接列表
@@ -246,18 +252,64 @@ public final class TransactionController {
         }
         stopped = true;
 
+        //先停止消息的适配处理
         msgAdapter.stop();
-
+        //停止SSC服务（如果需要）
+        toggleSSCServiceState(false);
+        //关闭广播监听、历史读取以及异步延时执行器等
         bcListener.close();
         scheduledExecutor.shutdown();
         bcListener = null;
         historyWorker = null;
         scheduledExecutor = null;
+        //重置状态记录等
+        setLastDestinationID(-1);
+        if (ctrlON) {
+            setCtrlON(false);
+        }
 
         if (EventBus.getDefault().isRegistered(this)) {
             EventBus.getDefault().unregister(this);
         }
         Log.i(TAG, "stop: SSC controller stopped.");
+    }
+
+    /**
+     * 切换SSC前台服务的状态（启动/停止）
+     */
+    public void toggleSSCServiceState(boolean enabled) {
+        final Intent intent = new Intent(MyApplication.appContext, SSCService.class);
+        try {
+            if (enabled) {      //启动前台服务
+                //设置启动有效性标志，如果已经执行过启动则当前为无效操作，否则为有效操作
+                intent.putExtra(SSCService.STARTUP_VALID_FLAG, !sscServiceStateFlag);
+                //计算SSC监听线程数（如果需要）：每10台设备至少需要1个线程，线程数最多不超过【可用核心数-1】
+                final int threadCount = !config.allowSSCMTListen ? 1 : Math.max(1, Math.min(
+                        DeviceUtil.getAvailableProcessors() - 1, (getCtrlDevicesCount() / 10) + 1));
+                Log.d(TAG, "toggleSSCServiceState: threadCount -> " + threadCount);
+
+                //执行启动服务操作
+                for (int i = 0; i < threadCount; i++) {
+                    //需要多少个线程就执行多少次启动操作
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        MyApplication.appContext.startForegroundService(intent);
+                    } else {
+                        MyApplication.appContext.startService(intent);
+                    }
+                }
+            } else {            //停止前台服务
+                //执行停止服务操作
+                MyApplication.appContext.stopService(intent);
+                // TODO: 2022/4/19 利用异步执行器来提供一种异步执行，用于停止服务前阻塞等待给设备发送断连信号，
+                //  具体调用那个停止方法根据Ctrl等状态自动判断（届时controller的stop方法要检查）
+            }
+
+            //设置标志
+            sscServiceStateFlag = enabled;
+        } catch (Throwable e) {
+            Log.e(TAG, "toggleSSCServiceState: Toggle SSC Service state failed.", e);
+            EventBus.getDefault().post(new SSCServiceExceptionEvent(enabled));
+        }
     }
 
     /**
@@ -391,6 +443,15 @@ public final class TransactionController {
      */
     public ScheduledFuture<?> schedule(Runnable command, long millisecondDelay) {
         return schedule(command, millisecondDelay, TimeUnit.MILLISECONDS);
+    }
+
+    /**
+     * SSC前台服务异常事件
+     */
+    @Subscribe
+    public void onSSCServiceExceptionEvent(SSCServiceExceptionEvent event) {
+        Log.e(TAG, "onSSCServiceExceptionEvent: " + event);
+        // TODO: 2022/4/19 根据异常状态作出相应处理
     }
 
     /**

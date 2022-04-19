@@ -26,11 +26,9 @@ import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import androidx.core.app.NotificationCompat;
-
-// TODO: 2022/4/16 前台服务允许多个线程同时监听，启用策略在controller中实现↓
-//  （当配置开启时，根据连接数量计算线程数，每超10个多开一条线程，但最多不超过【核心数-1】）
 
 // TODO: 2022/4/18 思考前台服务通知更新问题，在这里更新还是在controller中更新？
 
@@ -39,6 +37,11 @@ import androidx.core.app.NotificationCompat;
  */
 public class SSCService extends Service {
     private static final String TAG = "SSCService";
+    /**
+     * 前台服务启动操作的有效性标志（作为启动服务时在Intent中指示该启动操作有效性的键）
+     */
+    public static final String STARTUP_VALID_FLAG =
+            MyApplication.appContext.getPackageName() + ".SSC_SERVICE_STARTUP_VALID";
     /**
      * 前台服务通知渠道ID
      */
@@ -183,13 +186,14 @@ public class SSCService extends Service {
         } else if (udpSocket == null) {
             //UDPSocket初始化失败，停止服务，并post前台服务异常事件
             stopSelf();
-            EventBus.getDefault().post(new SSCServiceExceptionEvent());
+            EventBus.getDefault().post(new SSCServiceExceptionEvent(true));
         } else if (!listening) {
             //设置状态
             listening = true;
             //开始执行异步监听
             beginListen();
-        } else if (allowMTListen) {     //如果不允许多线程监听则忽略其重复启动的调用
+        } else if (allowMTListen    //忽略重复调用启动（当不允许多线程监听或当前是无效启动时）
+                && intent != null && intent.getBooleanExtra(STARTUP_VALID_FLAG, false)) {
             //每次调用（启动）都开启一个新线程进行同步多线程监听
             beginListen();
         }
@@ -210,6 +214,7 @@ public class SSCService extends Service {
             executor.shutdown();
         } catch (Throwable e) {
             Log.e(TAG, "onDestroy: SSC Service closing exception.", e);
+            EventBus.getDefault().post(new SSCServiceExceptionEvent(false));
         }
         Log.i(TAG, "onDestroy: SSC Service Closed.");
     }
@@ -223,14 +228,17 @@ public class SSCService extends Service {
     /**
      * 发送Ctrl相关消息事件
      */
-    @Subscribe(priority = 1)
+    @Subscribe(sticky = true, priority = 1)
     public void onSendUDPEvent(SendUDPEvent event) {
+        //无论如何，先移除sticky事件
+        EventBus.getDefault().removeStickyEvent(event);
+
         if (udpSocket == null || udpSocket.isClosed() || !listening) {
             return;
         }
 
         //开始执行异步发送
-        executor.submit(() -> {
+        Future<?> future = executor.submit(() -> {
             //获取当前线程ID
             final long threadID = Thread.currentThread().getId();
 
@@ -245,5 +253,14 @@ public class SSCService extends Service {
                 EventBus.getDefault().post(new SSCServiceExceptionEvent(event, threadID));
             }
         });
+
+        if (event.isAsyncBlocking()) {
+            try {
+                //阻塞等待异步发送完成
+                future.get();
+            } catch (Throwable e) {
+                Log.e(TAG, "onSendUDPEvent: Exception during blocking.", e);
+            }
+        }
     }
 }

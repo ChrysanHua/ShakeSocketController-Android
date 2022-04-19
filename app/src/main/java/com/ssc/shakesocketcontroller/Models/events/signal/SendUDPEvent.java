@@ -7,9 +7,11 @@ import java.net.InetAddress;
 public class SendUDPEvent {
 
     private MsgPacket mMsgPacket;
+    private final boolean asyncBlocking;
 
-    public SendUDPEvent(MsgPacket msgPacket) {
+    public SendUDPEvent(MsgPacket msgPacket, boolean asyncBlocking) {
         this.mMsgPacket = msgPacket;
+        this.asyncBlocking = asyncBlocking;
     }
 
     public byte[] getMsgData() {
@@ -22,5 +24,9 @@ public class SendUDPEvent {
 
     public MsgPacket getMsgPacket() {
         return mMsgPacket;
+    }
+
+    public boolean isAsyncBlocking() {
+        return asyncBlocking;
     }
 }

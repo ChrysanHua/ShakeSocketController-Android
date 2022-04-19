@@ -286,7 +286,8 @@ public class MainActivity extends AppCompatActivity {
         //  超时还是未连接（未收到确认信号）则通知变更UI并对已连接设备统一执行保存历史操作，等待电脑用户确认的情况除外；
         //  如果收到确认信号，则用EventBus进行通知↓？通知改变对应连接的数据以及UI；
         //  EventBus.getDefault().post(new LaunchConnectEvent(computerInfo.getMacStr()));
-        //变更连接监听服务的状态
+        //切换SSC前台服务的状态
+        controller.toggleSSCServiceState(controller.isCtrlON());
 
         //执行连接握手，逐一连接控制列表里的设备
 
