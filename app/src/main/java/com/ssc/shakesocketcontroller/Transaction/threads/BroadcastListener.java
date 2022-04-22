@@ -92,11 +92,14 @@ public class BroadcastListener {
             }
 
             //because it is not actively stopped, it needs to be closed manually
+            final boolean needHandle = listening;   //only the first incoming thread needs to handle
             listening = false;
-            //at first, discard the listening results
-            stop(false);
-            //then notify to stop the refresh
-            stop(true);
+            if (needHandle) {
+                //at first, discard the listening results
+                stop(false);
+                //then notify to stop the refresh
+                stop(true);
+            }
             //throw the notice
             throw new RuntimeException("Listening terminated abnormally!", unexpectedEx);
         });

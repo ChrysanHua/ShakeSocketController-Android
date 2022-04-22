@@ -6,10 +6,12 @@ import android.util.Log;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.ssc.shakesocketcontroller.Models.events.signal.BroadcastEvent;
+import com.ssc.shakesocketcontroller.Models.events.signal.CtrlStateChangedEvent;
 import com.ssc.shakesocketcontroller.Models.events.signal.EndRefreshEvent;
-import com.ssc.shakesocketcontroller.Models.events.signal.SSCServiceExceptionEvent;
+import com.ssc.shakesocketcontroller.Models.events.signal.SSCServiceStateChangedEvent;
 import com.ssc.shakesocketcontroller.Models.pojo.AppConfig;
 import com.ssc.shakesocketcontroller.Models.pojo.ComputerInfo;
+import com.ssc.shakesocketcontroller.R;
 import com.ssc.shakesocketcontroller.Transaction.threads.BroadcastListener;
 import com.ssc.shakesocketcontroller.Transaction.threads.HistoryWorker;
 import com.ssc.shakesocketcontroller.Transaction.threads.SSCService;
@@ -28,8 +30,13 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.StringRes;
 
-// TODO: 2022/3/17 SSC前台服务：测试服务的启动、停止等
+// TODO: 2022/4/20 现在：
+//  2.使点击前台服务通知时打开现有Activity实例；
+//  3.先搞定SSC服务里与发送相关的逻辑功能；
+
+// TODO: 2022/3/17 SSC前台服务：
 //  接收方：持续接收数据，接收后交由MsgAdapter处理；
 //  发送方：实现单条指令只post一次事件，回复超时监测可以在全部设备发送完毕之后再在外部触发定时任务；
 //      单条指令仅触发一个定时任务（无论已连接几台设备，超时后逐个处理）；
@@ -52,7 +59,7 @@ public final class TransactionController {
 
     private volatile boolean stopped = true;                //启动状态
     private volatile boolean ctrlON = false;                //控制（Ctrl）状态
-    private volatile boolean sscServiceStateFlag = false;   //SSC服务启动状态标志（仅标志操作状态不能表示实际运行状态）
+    private volatile boolean sscServiceStateFlag = false;   //SSC服务状态标志（不能保证准确反映实际运行状态）
     private int lastDestinationID = -1;                     //最后一个导航目的地ID
 
     private final List<ComputerInfo> onlineDeviceList;      //在线设备连接列表
@@ -308,7 +315,9 @@ public final class TransactionController {
             sscServiceStateFlag = enabled;
         } catch (Throwable e) {
             Log.e(TAG, "toggleSSCServiceState: Toggle SSC Service state failed.", e);
-            EventBus.getDefault().post(new SSCServiceExceptionEvent(enabled));
+            //post SSC服务状态变更事件，发SnackBar
+            EventBus.getDefault().post(
+                    new SSCServiceStateChangedEvent(sscServiceStateFlag, true, true));
         }
     }
 
@@ -428,6 +437,13 @@ public final class TransactionController {
         }
     }
 
+    public void pubNotification(@StringRes int resID) {
+        //发布SSC服务通知
+        // TODO: 2022/4/22 发通知，通知ID：2，
+        //  渠道ID：SSC_SERVICE_NOTIFY_CHANNEL，渠道名：SSC服务通知，标题：SSC服务提醒
+        Log.d(TAG, "pubNotification: " + MyApplication.appContext.getString(resID));
+    }
+
     /**
      * 发起一个异步延时任务
      */
@@ -446,12 +462,39 @@ public final class TransactionController {
     }
 
     /**
-     * SSC前台服务异常事件
+     * SSC前台服务状态变更事件
      */
-    @Subscribe
-    public void onSSCServiceExceptionEvent(SSCServiceExceptionEvent event) {
-        Log.e(TAG, "onSSCServiceExceptionEvent: " + event);
-        // TODO: 2022/4/19 根据异常状态作出相应处理
+    @Subscribe(priority = 1)
+    public void onSSCServiceStateChangedEvent(SSCServiceStateChangedEvent event) {
+        //根据事件状态确定执行什么操作（变更Ctrl状态、重置服务状态标志、发通知、处理发送失败；发送连接握手信息？）
+        Log.d(TAG, "onSSCServiceStateChangedEvent: " + event);
+
+        if (!event.isSendFailed() && event.isAutoOperation()
+                && (event.isHasError() || event.isRunningException())) {
+            //设置变更后的Ctrl状态
+            setCtrlON(event.getFinalState());
+            //post控制状态变更事件
+            EventBus.getDefault().post(new CtrlStateChangedEvent(event.getFinalState()));
+        }
+
+        if (!event.isSendFailed() && event.isAutoOperation() && !event.getFinalState()) {
+            //重置服务状态标志
+            sscServiceStateFlag = false;
+        }
+
+        if (!event.isSendFailed() && (event.isRunningException() ||
+                (event.isAutoOperation() && !event.isHasError()))) {
+            //发通知
+            if (!event.getFinalState()) {
+                pubNotification(event.isHasError() ?
+                        R.string.tip_notify_ctrl_exp_off : R.string.tip_notify_ctrl_auto_off);
+            }
+        }
+
+        if (event.isSendFailed()) {
+            // TODO: 2022/4/22 处理发送失败事件
+
+        }
     }
 
     /**

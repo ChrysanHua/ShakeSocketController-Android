@@ -10,7 +10,7 @@ import android.os.IBinder;
 import android.util.Log;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.ssc.shakesocketcontroller.Models.events.signal.SSCServiceExceptionEvent;
+import com.ssc.shakesocketcontroller.Models.events.signal.SSCServiceStateChangedEvent;
 import com.ssc.shakesocketcontroller.Models.events.signal.SendUDPEvent;
 import com.ssc.shakesocketcontroller.Models.events.signal.UDPReceiveEvent;
 import com.ssc.shakesocketcontroller.Models.pojo.AppConfig;
@@ -31,6 +31,8 @@ import java.util.concurrent.Future;
 import androidx.core.app.NotificationCompat;
 
 // TODO: 2022/4/18 思考前台服务通知更新问题，在这里更新还是在controller中更新？
+
+// TODO: 2022/4/20 后续涉及自动启动SSC服务的发开时，思考通过在启动Intent中再加入一个特殊键值；只需要单线程监听
 
 /**
  * SSC的Ctrl前台服务，负责发送和接收实际的Ctrl操作
@@ -63,6 +65,8 @@ public class SSCService extends Service {
     private DatagramSocket udpSocket;               //UDPSocket，用于发送和接收
 
     private volatile boolean listening = false;     //监听状态
+    private volatile boolean isAutomaticOP = false; //是否正在执行自动启动/停止
+
 
     public SSCService() {
         //通过APP配置初始化参数
@@ -87,10 +91,8 @@ public class SSCService extends Service {
             Log.e(TAG, "onCreate: UDPSocket creation failed.", e);
         }
 
-        if (udpSocket != null) {
-            //提升为前台服务
-            startForeground(FOREGROUND_SERVICE_NOTIFICATION_ID, buildForegroundNotification());
-        }
+        //提升为前台服务
+        startForeground(FOREGROUND_SERVICE_NOTIFICATION_ID, buildForegroundNotification());
 
         EventBus.getDefault().register(this);
         Log.i(TAG, "onCreate: SSC Service Instantiation OK.");
@@ -116,7 +118,7 @@ public class SSCService extends Service {
                 this, 0, new Intent(this, MainActivity.class), 0);
         //标题
         String title = "Listening…";
-        int ctrlCount = MyApplication.getController().getCtrlDevicesCount();
+        final int ctrlCount = MyApplication.getController().getCtrlDevicesCount();
         if (ctrlCount > 0) {
             title = MyApplication.getController().getCtrlDevices().get(0).nickName;
             if (ctrlCount > 1) {
@@ -161,8 +163,8 @@ public class SSCService extends Service {
                 Log.w(TAG, "beginListen: Socket reception stopped unexpectedly!");
             } catch (SocketException e) {
                 //预期内的异常，Socket被关闭
-                Log.d(TAG, "beginListen: Socket closed", e);
-                //Log.i(TAG, "beginListen: Socket closed.");
+                //Log.d(TAG, "beginListen: Socket closed", e);
+                Log.i(TAG, "beginListen: Socket closed.");
                 listening = false;
                 return;
             } catch (Throwable e) {
@@ -171,10 +173,16 @@ public class SSCService extends Service {
                 hasException = true;
             }
 
-            //非主动终止监听，停止服务，并post前台服务异常事件
+            //非主动的监听终止，确保停止服务，并post SSC服务状态变更事件
+            final boolean needPostEvent = !isAutomaticOP && listening;
             listening = false;
+            isAutomaticOP = true;
             stopSelf();
-            EventBus.getDefault().post(new SSCServiceExceptionEvent(hasException, threadID));
+            if (needPostEvent) {
+                //仅第一个进入的线程需要post SSC服务状态变更事件，发通知
+                EventBus.getDefault().post(new SSCServiceStateChangedEvent(false, true,
+                        hasException, threadID));
+            }
         });
     }
 
@@ -182,18 +190,29 @@ public class SSCService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (MyApplication.getController().isStopped() || !MyApplication.getController().isCtrlON()) {
             //已处于非Ctrl-ON状态，直接停止服务
+            final boolean needPostEvent = !isAutomaticOP;
+            isAutomaticOP = true;
             stopSelf();
+            if (needPostEvent) {
+                //仅系统自行重启服务时，才需要post SSC服务状态变更事件，发通知
+                EventBus.getDefault().post(new SSCServiceStateChangedEvent(false, true, false));
+            }
         } else if (udpSocket == null) {
-            //UDPSocket初始化失败，停止服务，并post前台服务异常事件
+            //UDPSocket初始化失败，自动停止服务
+            isAutomaticOP = true;
             stopSelf();
-            EventBus.getDefault().post(new SSCServiceExceptionEvent(true));
+            //post SSC服务状态变更事件，发SnackBar
+            EventBus.getDefault().post(new SSCServiceStateChangedEvent(false, true, true));
         } else if (!listening) {
             //设置状态
             listening = true;
             //开始执行异步监听
             beginListen();
-        } else if (allowMTListen    //忽略重复调用启动（当不允许多线程监听或当前是无效启动时）
-                && intent != null && intent.getBooleanExtra(STARTUP_VALID_FLAG, false)) {
+            //post SSC服务状态变更事件，发SnackBar
+            EventBus.getDefault().post(new SSCServiceStateChangedEvent(true));
+        } else if ( //忽略重复调用启动（当不允许多线程监听，或当前是无效启动，或启动异常需要自动停止服务时）
+                allowMTListen && !isAutomaticOP
+                        && intent != null && intent.getBooleanExtra(STARTUP_VALID_FLAG, false)) {
             //每次调用（启动）都开启一个新线程进行同步多线程监听
             beginListen();
         }
@@ -214,7 +233,13 @@ public class SSCService extends Service {
             executor.shutdown();
         } catch (Throwable e) {
             Log.e(TAG, "onDestroy: SSC Service closing exception.", e);
-            EventBus.getDefault().post(new SSCServiceExceptionEvent(false));
+            //post SSC服务状态变更事件，发Toast
+            EventBus.getDefault().post(new SSCServiceStateChangedEvent(false, false, true));
+        }
+
+        if (!isAutomaticOP) {
+            //只有正常停止服务时，才需要这个post SSC服务状态变更事件，发SnackBar
+            EventBus.getDefault().post(new SSCServiceStateChangedEvent(false));
         }
         Log.i(TAG, "onDestroy: SSC Service Closed.");
     }
@@ -248,9 +273,11 @@ public class SSCService extends Service {
                 udpSocket.send(packet);
                 Log.d(TAG, "onSendUDPEvent: send packet successfully");
             } catch (Throwable e) {
-                //发送失败，post前台服务异常事件
                 Log.e(TAG, "onSendUDPEvent: send packet failed.", e);
-                EventBus.getDefault().post(new SSCServiceExceptionEvent(event, threadID));
+                //发送失败，post SSC服务状态变更事件，检查各项状态然后视情况告知用户
+                // TODO: 2022/4/19 根据异常状态在controller订阅中作出相应处理（告知用户还是停止服务还是忽略）
+                EventBus.getDefault().post(new SSCServiceStateChangedEvent(listening, isAutomaticOP,
+                        event, threadID));
             }
         });
 
@@ -260,6 +287,9 @@ public class SSCService extends Service {
                 future.get();
             } catch (Throwable e) {
                 Log.e(TAG, "onSendUDPEvent: Exception during blocking.", e);
+                //同步等待过程中出现异常，无法确定发送是否已完成，post SSC服务状态变更事件，发Toast
+                EventBus.getDefault().post(new SSCServiceStateChangedEvent(listening, isAutomaticOP,
+                        event, -1));
             }
         }
     }

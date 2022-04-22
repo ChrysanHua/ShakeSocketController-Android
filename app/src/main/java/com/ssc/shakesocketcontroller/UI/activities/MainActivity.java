@@ -7,11 +7,13 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.snackbar.Snackbar;
 import com.ssc.shakesocketcontroller.Models.events.signal.CtrlStateChangedEvent;
+import com.ssc.shakesocketcontroller.Models.events.signal.SSCServiceStateChangedEvent;
 import com.ssc.shakesocketcontroller.R;
 import com.ssc.shakesocketcontroller.Transaction.controller.MyApplication;
 import com.ssc.shakesocketcontroller.Transaction.controller.TransactionController;
@@ -19,6 +21,8 @@ import com.ssc.shakesocketcontroller.Utils.DeviceUtil;
 import com.ssc.shakesocketcontroller.Utils.StrUtil;
 
 import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+import org.greenrobot.eventbus.ThreadMode;
 
 import java.lang.ref.WeakReference;
 import java.util.Objects;
@@ -86,29 +90,25 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         //标题栏
-        Toolbar toolbar = findViewById(R.id.toolbar);
+        final Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         //悬浮按钮
-        FloatingActionButton fab = findViewById(R.id.fab);
+        final FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(view -> {
             if (!controller.isCtrlON() && !DeviceUtil.isNetworkConnected()) {
-                //want to set Ctrl-ON, but no network
+                //想要启动控制（Ctrl-ON），但无网络连接
                 Snackbar.make(view, R.string.tip_no_network, Snackbar.LENGTH_LONG).show();
             } else {
-                //change state
+                //先让悬浮按钮的UI作出响应
+                view.setSelected(!controller.isCtrlON());
+                //切换Ctrl状态
                 toggleCtrlOnOffState();
-                //change appearance
-                setUIState(controller.isCtrlON());
-                //show tips
-                Snackbar.make(view,
-                        controller.isCtrlON() ? R.string.tip_ctrl_on : R.string.tip_ctrl_off,
-                        Snackbar.LENGTH_SHORT).show();
             }
         });
 
         //抽屉菜单以及导航图
-        DrawerLayout drawer = findViewById(R.id.drawer_layout);
-        NavigationView navigationView = findViewById(R.id.nav_view);
+        final DrawerLayout drawer = findViewById(R.id.drawer_layout);
+        final NavigationView navigationView = findViewById(R.id.nav_view);
         //创建导航按钮配置，每一个抽屉菜单项中的ID都应该加到里面，
         //  因为抽屉菜单中的每一项Fragment都是顶级页面（无需向上“←”按钮）
         mAppBarConfiguration = new AppBarConfiguration.Builder(
@@ -132,19 +132,19 @@ public class MainActivity extends AppCompatActivity {
                                              @Nullable Bundle arguments) {
                 Log.d(TAG, "onDestinationChanged: " + destination.getLabel());
                 //通过弱引用获取导航图
-                NavigationView navView = weakRefNavView.get();
+                final NavigationView navView = weakRefNavView.get();
                 if (navView == null) {
                     mNavController.removeOnDestinationChangedListener(this);
                     return;
                 }
                 //显式设置导航菜单的选中项，以解决显式导航时嵌套子菜单无法被选中的问题
-                MenuItem item = navView.getMenu().findItem(destination.getId());
+                final MenuItem item = navView.getMenu().findItem(destination.getId());
                 if (item != null && !item.isChecked()) {
                     navView.setCheckedItem(item);
                 }
 
                 //按需记录目的地ID
-                boolean shouldNav = arguments == null || arguments.getBoolean(
+                final boolean shouldNav = arguments == null || arguments.getBoolean(
                         MyApplication.appContext.getString(R.string.arg_name_should_nav_flag), true);
                 if (shouldNav) {
                     mLastDestinationID = destination.getId();
@@ -157,20 +157,21 @@ public class MainActivity extends AppCompatActivity {
 
         //缓存抽屉菜单顶栏内容的引用
         if (navigationView.getTag() == null) {
-            NavHeaderViewHolder holder = new NavHeaderViewHolder(navigationView.getHeaderView(0));
+            final NavHeaderViewHolder holder = new NavHeaderViewHolder(navigationView.getHeaderView(0));
             navigationView.setTag(holder);
             //设置本机设备名
             holder.deviceName.setText(controller.getCurrentConfig().nickName);
         }
 
-        //进入Activity先根据Ctrl状态更新UI
-        setUIState(controller.isCtrlON());
         Log.d(TAG, "finish onCreate: for HomeListFragment");
     }
 
     @Override
     protected void onStart() {
         super.onStart();
+        EventBus.getDefault().register(this);
+        //进入Activity先根据Ctrl状态更新UI
+        setUIState(controller.isCtrlON());
         //进入界面时如果已经处于上次退出时的界面（即未显式导航就已经在目的地），则需要重置为初始状态
         if (controller.isCtrlON() &&
                 Objects.requireNonNull(mNavController.getCurrentDestination()).getId()
@@ -194,6 +195,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onStop() {
+        EventBus.getDefault().unregister(this);
         super.onStop();
         //退出界面时才真正保存目的地ID
         if (controller.isCtrlON()) {
@@ -226,7 +228,7 @@ public class MainActivity extends AppCompatActivity {
      */
     @Override
     public void onBackPressed() {
-        DrawerLayout drawer = findViewById(R.id.drawer_layout);
+        final DrawerLayout drawer = findViewById(R.id.drawer_layout);
         if (drawer.isDrawerOpen(GravityCompat.START)) {
             //关闭抽屉菜单（如果处于展开状态）
             drawer.closeDrawer(GravityCompat.START);
@@ -253,7 +255,7 @@ public class MainActivity extends AppCompatActivity {
         // Handle action bar item clicks here. The action bar will
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
+        final int id = item.getItemId();
 
         //处理标题栏各Action按钮
         if (id == R.id.action_settings) {
@@ -289,7 +291,7 @@ public class MainActivity extends AppCompatActivity {
         //切换SSC前台服务的状态
         controller.toggleSSCServiceState(controller.isCtrlON());
 
-        //执行连接握手，逐一连接控制列表里的设备
+        //执行连接握手，逐一连接控制列表里的设备（建议放到controller里SSC服务的订阅事件中）
 
     }
 
@@ -300,17 +302,17 @@ public class MainActivity extends AppCompatActivity {
      */
     private void setUIState(boolean enabled) {
         //悬浮按钮
-        FloatingActionButton fab = findViewById(R.id.fab);
+        final FloatingActionButton fab = findViewById(R.id.fab);
         fab.setSelected(enabled);
 
         //通过抽屉菜单导航栏获取顶栏ViewHolder
-        NavigationView navigationView = findViewById(R.id.nav_view);
-        NavHeaderViewHolder holder = (NavHeaderViewHolder) navigationView.getTag();
+        final NavigationView navigationView = findViewById(R.id.nav_view);
+        final NavHeaderViewHolder holder = (NavHeaderViewHolder) navigationView.getTag();
         if (enabled) {
             holder.rootView.setBackgroundResource(R.drawable.bg_side_nav_bar_on);
-            String ipStr = DeviceUtil.getLocalIP();
+            final String ipStr = DeviceUtil.getLocalIP();
             holder.deviceIP.setText(StrUtil.isNullOrEmpty(ipStr) ? null : String.format("(%s)", ipStr));
-            int ctrlCount = controller.getCtrlDevicesCount();
+            final int ctrlCount = controller.getCtrlDevicesCount();
             if (ctrlCount == 1) {
                 holder.ctrlCount.setText(controller.getCtrlDevices().get(0).getIP());
                 holder.ctrlState.setText(R.string.tip_nav_ctrl_on_single);
@@ -332,6 +334,40 @@ public class MainActivity extends AppCompatActivity {
         //        getResources(),
         //        enabled ? R.color.fabON : R.color.fabOFF,
         //        getTheme()));
+    }
+
+    /**
+     * SSC前台服务状态变更事件
+     */
+    @Subscribe(threadMode = ThreadMode.MAIN_ORDERED)
+    public void onSSCServiceStateChangedEvent(SSCServiceStateChangedEvent event) {
+        //根据事件状态确定该执行哪些操作（变更UI、弹出SnackBar、显示Toast）
+        Log.d(TAG, "onSSCServiceStateChangedEvent: " + event);
+
+        if (!event.isSendFailed() && !(!event.isAutoOperation() && event.isHasError())) {
+            //变更UI
+            setUIState(event.getFinalState());
+        }
+
+        if (!event.isSendFailed() && !event.isRunningException()
+                && event.isAutoOperation() == event.isHasError()) {
+            //弹出SnackBar提示信息
+            if (!event.isHasError()) {
+                //正常提示
+                Snackbar.make(findViewById(R.id.fab),
+                        event.getFinalState() ? R.string.tip_ctrl_on : R.string.tip_ctrl_off,
+                        Snackbar.LENGTH_SHORT).show();
+            } else {
+                //异常提示
+                Snackbar.make(findViewById(R.id.fab), R.string.tip_ctrl_fail,
+                        Snackbar.LENGTH_LONG).show();
+            }
+        }
+
+        if (!event.isRunningException() && !event.isAutoOperation() && event.isHasError()) {
+            //显示Toast提示信息
+            Toast.makeText(this, R.string.tip_unknown_problem, Toast.LENGTH_LONG).show();
+        }
     }
 
 }
