@@ -33,7 +33,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.StringRes;
 
 // TODO: 2022/4/20 现在：
-//  2.使点击前台服务通知时打开现有Activity实例；
+//  2.处理全局发通知的逻辑；
 //  3.先搞定SSC服务里与发送相关的逻辑功能；
 
 // TODO: 2022/3/17 SSC前台服务：

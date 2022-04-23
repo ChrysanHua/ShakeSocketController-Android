@@ -107,10 +107,14 @@ public class SSCService extends Service {
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             //创建通知渠道（如果需要）
-            notificationManager.createNotificationChannel(new NotificationChannel(
+            final NotificationChannel channel = new NotificationChannel(
                     FOREGROUND_SERVICE_CHANNEL_ID,
                     FOREGROUND_SERVICE_CHANNEL_NAME,
-                    NotificationManager.IMPORTANCE_LOW));
+                    NotificationManager.IMPORTANCE_LOW);
+            channel.setDescription(getString(R.string.ssc_service_channel_desc));
+            channel.setShowBadge(false);
+            channel.setLockscreenVisibility(NotificationCompat.VISIBILITY_SECRET);
+            notificationManager.createNotificationChannel(channel);
         }
 
         //创建点击通知时的行为
@@ -136,6 +140,7 @@ public class SSCService extends Service {
                 .setContentTitle(title)
                 .setContentText(content)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setVisibility(NotificationCompat.VISIBILITY_SECRET)
                 .build();
     }
 
