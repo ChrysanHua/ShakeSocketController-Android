@@ -2,9 +2,11 @@
     <string name="app_name">ShakeSocketController</string>
     <string name="app_ssc_service_name">SSC Service</string>
     <string name="app_ssc_service_desc">ShakeSocketController的控制监听服务</string>
-    <string name="ssc_service_channel_desc">控制器启动后，SSC前台服务在通知栏常驻的状态通知</string>
+    <string name="foreground_service_channel_desc">控制器启动后，SSC前台服务在通知栏常驻的状态通知</string>
+    <string name="service_notify_channel_desc">与SSC服务相关的通知</string>
     <string name="nav_header_img_desc">Navigation header</string>
     <string name="floating_btn_desc">Floating On-Off</string>
+    <string name="service_notify_channel_default_title">SSC服务提醒</string>
     <string name="txt_text_view">TextView</string>
     <string name="arg_name_online_flag">isOnlineView</string>
     <string name="arg_name_should_nav_flag">shouldNavOnReopen</string>

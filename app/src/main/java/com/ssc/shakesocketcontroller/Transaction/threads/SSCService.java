@@ -1,9 +1,6 @@
 package com.ssc.shakesocketcontroller.Transaction.threads;
 
 import android.app.Notification;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.os.IBinder;
@@ -16,7 +13,6 @@ import com.ssc.shakesocketcontroller.Models.events.signal.UDPReceiveEvent;
 import com.ssc.shakesocketcontroller.Models.pojo.AppConfig;
 import com.ssc.shakesocketcontroller.R;
 import com.ssc.shakesocketcontroller.Transaction.controller.MyApplication;
-import com.ssc.shakesocketcontroller.UI.activities.MainActivity;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -30,7 +26,7 @@ import java.util.concurrent.Future;
 
 import androidx.core.app.NotificationCompat;
 
-// TODO: 2022/4/18 思考前台服务通知更新问题，在这里更新还是在controller中更新？
+// TODO: 2022/4/24 订阅连接成功事件，更新SSC前台服务通知
 
 // TODO: 2022/4/20 后续涉及自动启动SSC服务的发开时，思考通过在启动Intent中再加入一个特殊键值；只需要单线程监听
 
@@ -63,6 +59,7 @@ public class SSCService extends Service {
 
     private ExecutorService executor;               //执行线程池
     private DatagramSocket udpSocket;               //UDPSocket，用于发送和接收
+    private NotificationCompat.Builder nBuilder;    //前台服务通知的Builder
 
     private volatile boolean listening = false;     //监听状态
     private volatile boolean isAutomaticOP = false; //是否正在执行自动启动/停止
@@ -91,6 +88,11 @@ public class SSCService extends Service {
             Log.e(TAG, "onCreate: UDPSocket creation failed.", e);
         }
 
+        //初始化前台服务通知Builder
+        nBuilder = MyApplication.getController().buildNotificationBuilder(
+                FOREGROUND_SERVICE_CHANNEL_ID,
+                FOREGROUND_SERVICE_CHANNEL_NAME,
+                R.string.foreground_service_channel_desc);
         //提升为前台服务
         startForeground(FOREGROUND_SERVICE_NOTIFICATION_ID, buildForegroundNotification());
 
@@ -102,24 +104,6 @@ public class SSCService extends Service {
      * 构建该前台服务对应的通知
      */
     private Notification buildForegroundNotification() {
-        final NotificationManager notificationManager =
-                (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            //创建通知渠道（如果需要）
-            final NotificationChannel channel = new NotificationChannel(
-                    FOREGROUND_SERVICE_CHANNEL_ID,
-                    FOREGROUND_SERVICE_CHANNEL_NAME,
-                    NotificationManager.IMPORTANCE_LOW);
-            channel.setDescription(getString(R.string.ssc_service_channel_desc));
-            channel.setShowBadge(false);
-            channel.setLockscreenVisibility(NotificationCompat.VISIBILITY_SECRET);
-            notificationManager.createNotificationChannel(channel);
-        }
-
-        //创建点击通知时的行为
-        final PendingIntent pi = PendingIntent.getActivity(
-                this, 0, new Intent(this, MainActivity.class), 0);
         //标题
         String title = "Listening…";
         final int ctrlCount = MyApplication.getController().getCtrlDevicesCount();
@@ -134,14 +118,7 @@ public class SSCService extends Service {
                 + "台设备已成功连接";
 
         //创建通知对象
-        return new NotificationCompat.Builder(this, FOREGROUND_SERVICE_CHANNEL_ID)
-                .setContentIntent(pi)
-                .setSmallIcon(R.drawable.ic_ssc_switch)
-                .setContentTitle(title)
-                .setContentText(content)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
-                .setVisibility(NotificationCompat.VISIBILITY_SECRET)
-                .build();
+        return nBuilder.setContentTitle(title).setContentText(content).build();
     }
 
     /**
@@ -236,6 +213,8 @@ public class SSCService extends Service {
 
             //关闭执行线程池
             executor.shutdown();
+            //清空通知Builder
+            nBuilder = null;
         } catch (Throwable e) {
             Log.e(TAG, "onDestroy: SSC Service closing exception.", e);
             //post SSC服务状态变更事件，发Toast

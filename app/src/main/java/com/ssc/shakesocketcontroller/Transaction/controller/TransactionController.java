@@ -1,5 +1,8 @@
 package com.ssc.shakesocketcontroller.Transaction.controller;
 
+import android.annotation.SuppressLint;
+import android.app.NotificationChannel;
+import android.app.PendingIntent;
 import android.content.Intent;
 import android.os.Build;
 import android.util.Log;
@@ -15,6 +18,7 @@ import com.ssc.shakesocketcontroller.R;
 import com.ssc.shakesocketcontroller.Transaction.threads.BroadcastListener;
 import com.ssc.shakesocketcontroller.Transaction.threads.HistoryWorker;
 import com.ssc.shakesocketcontroller.Transaction.threads.SSCService;
+import com.ssc.shakesocketcontroller.UI.activities.MainActivity;
 import com.ssc.shakesocketcontroller.Utils.DeviceUtil;
 
 import org.greenrobot.eventbus.EventBus;
@@ -31,9 +35,10 @@ import java.util.concurrent.TimeUnit;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.StringRes;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 
 // TODO: 2022/4/20 现在：
-//  2.处理全局发通知的逻辑；
 //  3.先搞定SSC服务里与发送相关的逻辑功能；
 
 // TODO: 2022/3/17 SSC前台服务：
@@ -49,6 +54,19 @@ import androidx.annotation.StringRes;
  */
 public final class TransactionController {
     private static final String TAG = "TransactionController";
+
+    /**
+     * SSC服务消息通知渠道ID
+     */
+    public static final String SSC_SERVICE_NOTIFY_CHANNEL_ID = "SSC_SERVICE_NOTIFY_CHANNEL";
+    /**
+     * SSC服务消息通知渠道名
+     */
+    public static final String SSC_SERVICE_NOTIFY_CHANNEL_NAME = "SSC服务通知";
+    /**
+     * SSC服务消息通知ID
+     */
+    public static final int SSC_SERVICE_NOTIFY_NOTIFICATION_ID = 2;
 
     /**
      * 自引用，用于单例模式的对象
@@ -437,11 +455,75 @@ public final class TransactionController {
         }
     }
 
-    public void pubNotification(@StringRes int resID) {
+    /**
+     * 构建默认的通知Builder，通常只需要再设置标题与内容即可，已根据渠道自动设置如下默认值：
+     * <p>创建渠道、通知点击行为、图标、重要性级别</p>
+     */
+    public NotificationCompat.Builder buildNotificationBuilder(@NonNull String channelID,
+                                                               @NonNull String channelName,
+                                                               @StringRes int channelDescID) {
+        final NotificationManagerCompat manager =
+                NotificationManagerCompat.from(MyApplication.appContext);
+        final boolean isSSCServiceNotify = channelID.equals(SSCService.FOREGROUND_SERVICE_CHANNEL_ID);
+        final int channelPriority = isSSCServiceNotify ? NotificationManagerCompat.IMPORTANCE_LOW
+                : NotificationManagerCompat.IMPORTANCE_DEFAULT;
+        final int notificationPriority = isSSCServiceNotify ? NotificationCompat.PRIORITY_LOW
+                : NotificationCompat.PRIORITY_DEFAULT;
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            //创建通知渠道（如果需要）
+            @SuppressLint("WrongConstant") final NotificationChannel channel =
+                    new NotificationChannel(channelID, channelName, channelPriority);
+            channel.setDescription(MyApplication.appContext.getString(channelDescID));
+            if (isSSCServiceNotify) {
+                channel.setShowBadge(false);
+                channel.setLockscreenVisibility(NotificationCompat.VISIBILITY_SECRET);
+            }
+            manager.createNotificationChannel(channel);
+        }
+
+        //创建点击通知时的行为
+        final PendingIntent pi = PendingIntent.getActivity(MyApplication.appContext, 0,
+                new Intent(MyApplication.appContext, MainActivity.class), 0);
+        //创建Builder
+        final NotificationCompat.Builder builder = new NotificationCompat.Builder(
+                MyApplication.appContext, channelID)
+                .setContentIntent(pi)
+                .setSmallIcon(R.drawable.ic_ssc_switch)
+                .setPriority(notificationPriority);
+        if (isSSCServiceNotify) {
+            builder.setVisibility(NotificationCompat.VISIBILITY_SECRET);
+        } else {
+            builder.setAutoCancel(true);
+        }
+
+        return builder;
+    }
+
+    /**
+     * 向指定渠道发布一条通知
+     */
+    public void pubNotification(@NonNull String channelID, @NonNull String channelName,
+                                @StringRes int channelDescID,
+                                int notificationID, String title, String content) {
+        NotificationManagerCompat.from(MyApplication.appContext).notify(notificationID,
+                buildNotificationBuilder(channelID, channelName, channelDescID)
+                        .setContentTitle(title)
+                        .setContentText(content)
+                        .build());
+    }
+
+    /**
+     * 使用SSC服务消息渠道发送一条通知
+     */
+    public void pubSSCNotification(@StringRes int contentResID) {
+        final String title = MyApplication.appContext.getString(R.string.service_notify_channel_default_title);
+        final String content = MyApplication.appContext.getString(contentResID);
+        Log.d(TAG, "pubNotification: " + content);
         //发布SSC服务通知
-        // TODO: 2022/4/22 发通知，通知ID：2，
-        //  渠道ID：SSC_SERVICE_NOTIFY_CHANNEL，渠道名：SSC服务通知，标题：SSC服务提醒
-        Log.d(TAG, "pubNotification: " + MyApplication.appContext.getString(resID));
+        pubNotification(SSC_SERVICE_NOTIFY_CHANNEL_ID, SSC_SERVICE_NOTIFY_CHANNEL_NAME,
+                R.string.service_notify_channel_desc, SSC_SERVICE_NOTIFY_NOTIFICATION_ID,
+                title, content);
     }
 
     /**
@@ -486,7 +568,7 @@ public final class TransactionController {
                 (event.isAutoOperation() && !event.isHasError()))) {
             //发通知
             if (!event.getFinalState()) {
-                pubNotification(event.isHasError() ?
+                pubSSCNotification(event.isHasError() ?
                         R.string.tip_notify_ctrl_exp_off : R.string.tip_notify_ctrl_auto_off);
             }
         }
